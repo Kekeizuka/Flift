@@ -52,8 +52,14 @@ export function SetRow({ set, index, unit, onDelete }: SetRowProps) {
             {formatWeight(set.weightG, unit).split(" ")[1]}
           </span>
         </div>
-        <div className="mt-0.5 text-[0.65rem] tabular-nums text-faint">
-          e1RM ≈ {oneRm} {unit}
+        <div className="mt-1 flex items-center gap-1.5 text-[0.65rem] tabular-nums text-faint">
+          <span>e1RM ≈ {oneRm} {unit}</span>
+          {set.rpe != null && <span className="text-muted">· RPE {set.rpe}</span>}
+          {set.tag && (
+            <span className="rounded bg-crimson/15 px-1.5 py-0.5 font-semibold uppercase tracking-wide text-crimson">
+              {set.tag === "amrap" ? "AMRAP" : "Failure"}
+            </span>
+          )}
         </div>
       </div>
 

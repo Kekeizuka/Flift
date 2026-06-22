@@ -28,10 +28,14 @@ export function AddExerciseSheet({ open, onClose, addedIds, onAdd }: AddExercise
   const filtered = q
     ? exercises.filter(
         (e) =>
-          e.name.toLowerCase().includes(q) || e.muscleGroups.some((m) => m.includes(q)),
+          e.name.toLowerCase().includes(q) ||
+          e.muscleGroups.some((m) => m.includes(q)) ||
+          (e.primaryMuscles ?? []).some((m) => m.toLowerCase().includes(q)),
       )
     : exercises;
 
+  // Cap the rendered list so adding an exercise stays instant with 800+ in the library.
+  const shown = filtered.slice(0, 50);
   const exactMatch = exercises.some((e) => e.name.toLowerCase() === q);
 
   async function handleCreate() {
@@ -61,7 +65,7 @@ export function AddExerciseSheet({ open, onClose, addedIds, onAdd }: AddExercise
       </div>
 
       <ul ref={listRef} className="flex flex-col gap-1.5 px-2">
-        {filtered.map((ex) => {
+        {shown.map((ex) => {
           const added = addedIds.has(ex.id);
           return (
             <li key={ex.id}>
@@ -103,6 +107,12 @@ export function AddExerciseSheet({ open, onClose, addedIds, onAdd }: AddExercise
               <PlusIcon className="h-4 w-4" />
               <span className="font-medium">Create “{query.trim()}”</span>
             </button>
+          </li>
+        )}
+
+        {filtered.length > shown.length && (
+          <li className="px-2 py-3 text-center text-xs text-faint">
+            Showing {shown.length} of {filtered.length} — search to narrow.
           </li>
         )}
       </ul>

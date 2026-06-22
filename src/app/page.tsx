@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { BoltIcon, ChevronRightIcon, FlameIcon, Icon } from "@/components/icons";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { useActiveWorkout } from "@/stores/activeWorkout";
@@ -33,9 +34,11 @@ function greeting() {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const unit = useSettings((s) => s.unit);
   const weeklyGoal = useSettings((s) => s.weeklyGoal);
-  const { status, startedAt, exercises, hydrate } = useActiveWorkout();
+  const firstDayOfWeek = useSettings((s) => s.firstDayOfWeek);
+  const { status, startedAt, exercises, hydrate, repeatLast } = useActiveWorkout();
 
   const [ready, setReady] = React.useState(false);
   const [stats, setStats] = React.useState<DashboardStats | null>(null);
@@ -47,7 +50,7 @@ export default function DashboardPage() {
     (async () => {
       await hydrate();
       const [dash, ws, pr] = await Promise.all([
-        getDashboardStats(weeklyGoal),
+        getDashboardStats(weeklyGoal, firstDayOfWeek),
         listRecentWorkouts(6),
         recentPRs(1),
       ]);
@@ -61,7 +64,12 @@ export default function DashboardPage() {
     return () => {
       alive = false;
     };
-  }, [hydrate, weeklyGoal]);
+  }, [hydrate, weeklyGoal, firstDayOfWeek]);
+
+  async function handleRepeatLast() {
+    const id = await repeatLast();
+    if (id) router.push("/workout/active");
+  }
 
   const sessionActive = status === "active";
   const isEmpty = ready && !sessionActive && (stats?.totalWorkouts ?? 0) === 0;
@@ -129,6 +137,22 @@ export default function DashboardPage() {
             <EmptyState />
           ) : (
             <>
+              {!sessionActive && recents.length > 0 && (
+                <button
+                  onClick={handleRepeatLast}
+                  className="flex items-center gap-3 rounded-2xl border border-line/70 bg-surface/80 px-4 py-3 text-left transition-colors active:bg-raised"
+                >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-raised text-crimson">
+                    <Icon name="undo" className="h-5 w-5" />
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-medium text-text">Repeat last session</p>
+                    <p className="text-xs text-faint">Same exercises, weights carried over</p>
+                  </div>
+                  <ChevronRightIcon className="h-4 w-4 text-faint" />
+                </button>
+              )}
+
               {/* Weekly hero */}
               <Card className="p-5">
                 <div className="flex items-center gap-5">
@@ -190,7 +214,11 @@ export default function DashboardPage() {
                   <CardLabel>Consistency</CardLabel>
                   <span className="text-xs text-muted">last 5 weeks</span>
                 </div>
-                <ActivityGrid activeDays={stats!.activeDays} today={stats!.today} />
+                <ActivityGrid
+                  activeDays={stats!.activeDays}
+                  today={stats!.today}
+                  weekStartsOn={firstDayOfWeek}
+                />
               </Card>
 
               {/* Recent sessions */}

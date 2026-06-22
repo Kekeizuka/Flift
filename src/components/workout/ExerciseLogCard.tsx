@@ -5,21 +5,31 @@ import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { motion } from "motion/react";
 import { AnimatedCheck, Icon, MoreIcon, equipmentIconName } from "@/components/icons";
 import type { ActiveExercise } from "@/stores/activeWorkout";
-import type { SetType } from "@/lib/types";
+import type { SetTag, SetType } from "@/lib/types";
 import type { WeightUnit } from "@/lib/units";
 import { displayWeight, toGrams } from "@/lib/units";
-import { cn } from "@/lib/utils";
+import { useSettings } from "@/stores/settings";
+import { cn, generateWarmupSets, roundToLoadable } from "@/lib/utils";
 import { Card } from "@/components/ui/Card";
 import { SetRow } from "./SetRow";
 import { NumberStepper } from "./NumberStepper";
+import { PlateCalculator } from "./PlateCalculator";
 
 interface ExerciseLogCardProps {
   exercise: ActiveExercise;
   unit: WeightUnit;
-  onLog: (input: { weightG: number; reps: number; type: SetType }) => void;
+  onLog: (input: { weightG: number; reps: number; type: SetType; rpe?: number; tag?: SetTag }) => void;
+  onWarmups: (sets: { weightG: number; reps: number }[]) => void;
   onDeleteSet: (id: string) => void;
   onRemove: () => void;
 }
+
+const TYPES: { id: SetType; label: string; on: string }[] = [
+  { id: "working", label: "Working", on: "bg-crimson/15 text-crimson" },
+  { id: "warmup", label: "Warm-up", on: "bg-amber/15 text-amber" },
+  { id: "drop", label: "Drop", on: "bg-cyan/15 text-cyan" },
+];
+const RPE_CHOICES: (number | undefined)[] = [undefined, 7, 8, 9, 10];
 
 /** Heaviest set from the previous session, for the "last time" hint. */
 function topSet(sets: ActiveExercise["sets"]) {
@@ -30,11 +40,17 @@ export function ExerciseLogCard({
   exercise,
   unit,
   onLog,
+  onWarmups,
   onDeleteSet,
   onRemove,
 }: ExerciseLogCardProps) {
   const weightStep = unit === "kg" ? 2.5 : 5;
   const [setListRef] = useAutoAnimate<HTMLDivElement>();
+
+  const warmupRamp = useSettings((s) => s.warmupRamp);
+  const availablePlates = useSettings((s) => s.availablePlates);
+  const barWeight = useSettings((s) => s.barWeight);
+  const dumbbellIncrement = useSettings((s) => s.dumbbellIncrement);
 
   const seed = React.useMemo(() => {
     // Priority: this session's last set → an applied plan → last time → default.
@@ -57,9 +73,14 @@ export function ExerciseLogCard({
   const [weight, setWeight] = React.useState(seed.weight);
   const [reps, setReps] = React.useState(seed.reps);
   const [type, setType] = React.useState<SetType>("working");
+  const [rpe, setRpe] = React.useState<number | undefined>(undefined);
+  const [tag, setTag] = React.useState<SetTag | undefined>(undefined);
+  const [showDetails, setShowDetails] = React.useState(false);
+  const [plateOpen, setPlateOpen] = React.useState(false);
 
   const last = exercise.lastPerformance;
   const lastTop = last && topSet(last.sets);
+  const isBarbell = exercise.equipment === "barbell";
 
   function handleLog() {
     if (reps <= 0) return;
@@ -68,7 +89,18 @@ export function ExerciseLogCard({
     } catch {
       /* no-op */
     }
-    onLog({ weightG: toGrams(weight, unit), reps, type });
+    onLog({ weightG: toGrams(weight, unit), reps, type, rpe, tag });
+    if (tag) setTag(undefined); // effort tags are per-set, not sticky
+  }
+
+  function handleWarmups() {
+    const cfg = { equipment: exercise.equipment, availablePlates, barWeight, dumbbellIncrement };
+    const warm = generateWarmupSets(weight, {
+      ramp: warmupRamp,
+      round: (w) => roundToLoadable(w, cfg),
+    });
+    if (warm.length === 0) return;
+    onWarmups(warm.map((s) => ({ weightG: toGrams(s.weight, unit), reps: s.reps })));
   }
 
   return (
@@ -91,6 +123,12 @@ export function ExerciseLogCard({
                 </span>
               )}
             </p>
+            {exercise.settingsMemory && (
+              <p className="mt-1 flex items-center gap-1 text-[0.7rem] text-cyan">
+                <Icon name="edit" className="h-3 w-3" />
+                {exercise.settingsMemory}
+              </p>
+            )}
             {exercise.plannedWeightG != null &&
               exercise.plannedReps != null &&
               exercise.sets.length === 0 && (
@@ -129,25 +167,57 @@ export function ExerciseLogCard({
 
       {/* Add-set row — the fast path. */}
       <div className="mt-3 border-t border-line/50 bg-ink/30 p-3">
-        <div className="mb-3 flex items-center gap-1.5">
-          {(["working", "warmup"] as const).map((t) => (
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1">
+            {TYPES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setType(t.id)}
+                className={cn(
+                  "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                  type === t.id ? t.on : "text-faint active:text-muted",
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1">
             <button
-              key={t}
               type="button"
-              onClick={() => setType(t)}
+              onClick={handleWarmups}
+              aria-label="Generate warm-up sets"
+              title="Generate warm-up sets"
+              className="flex h-8 items-center gap-1 rounded-full px-2 text-xs font-medium text-amber active:bg-raised"
+            >
+              <Icon name="flame" className="h-4 w-4" /> Warm-ups
+            </button>
+            {isBarbell && (
+              <button
+                type="button"
+                onClick={() => setPlateOpen(true)}
+                aria-label="Plate calculator"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-muted active:bg-raised active:text-text"
+              >
+                <Icon name="plate" className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowDetails((v) => !v)}
+              aria-label="Set details"
+              aria-pressed={showDetails}
               className={cn(
-                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                type === t
-                  ? t === "warmup"
-                    ? "bg-amber/15 text-amber"
-                    : "bg-crimson/15 text-crimson"
-                  : "text-faint active:text-muted",
+                "flex h-8 w-8 items-center justify-center rounded-full transition-colors active:bg-raised",
+                showDetails ? "text-text" : "text-muted",
               )}
             >
-              {t === "working" ? "Working" : "Warm-up"}
+              <Icon name="adjust" className="h-4 w-4" />
             </button>
-          ))}
+          </div>
         </div>
+
         <div className="flex items-end gap-2.5">
           <div className="flex-1">
             <NumberStepper
@@ -171,7 +241,55 @@ export function ExerciseLogCard({
             <AnimatedCheck key={exercise.sets.length} className="h-6 w-6" strokeWidth={2.5} />
           </motion.button>
         </div>
+
+        {/* Optional effort details — kept out of the way of fast logging. */}
+        {showDetails && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line/40 pt-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[0.65rem] uppercase tracking-wider text-faint">RPE</span>
+              {RPE_CHOICES.map((r) => (
+                <button
+                  key={r ?? "off"}
+                  type="button"
+                  onClick={() => setRpe(r)}
+                  className={cn(
+                    "h-7 w-7 rounded-full text-xs font-semibold tabular-nums transition-colors",
+                    rpe === r ? "bg-arena text-white" : "bg-raised text-faint active:text-muted",
+                  )}
+                >
+                  {r ?? "—"}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1.5">
+              {(["failure", "amrap"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTag((cur) => (cur === t ? undefined : t))}
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-xs font-medium uppercase tracking-wide transition-colors",
+                    tag === t ? "bg-crimson/20 text-crimson" : "bg-raised text-faint active:text-muted",
+                  )}
+                >
+                  {t === "amrap" ? "AMRAP" : "Failure"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
+
+      {isBarbell && (
+        <PlateCalculator
+          open={plateOpen}
+          onClose={() => setPlateOpen(false)}
+          targetWeight={weight}
+          unit={unit}
+          barWeight={barWeight}
+          plates={availablePlates}
+        />
+      )}
     </Card>
   );
 }

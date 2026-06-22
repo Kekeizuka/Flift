@@ -6,10 +6,10 @@ export function startOfDay(d: Date | number): Date {
   return date;
 }
 
-/** Monday-based start of week. */
-export function startOfWeek(d: Date | number): Date {
+/** Start of week. `weekStartsOn`: 1 = Monday (default), 0 = Sunday. */
+export function startOfWeek(d: Date | number, weekStartsOn: 0 | 1 = 1): Date {
   const date = startOfDay(d);
-  const day = (date.getDay() + 6) % 7; // Mon=0 … Sun=6
+  const day = (date.getDay() - weekStartsOn + 7) % 7;
   date.setDate(date.getDate() - day);
   return date;
 }

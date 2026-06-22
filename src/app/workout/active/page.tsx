@@ -10,7 +10,8 @@ import { firePRConfetti } from "@/lib/confetti";
 import { useActiveWorkout } from "@/stores/activeWorkout";
 import { useSettings } from "@/stores/settings";
 import { useRestTimer } from "@/stores/restTimer";
-import type { SetType } from "@/lib/types";
+import { getLastFinishedWorkout } from "@/lib/repo";
+import type { SetTag, SetType } from "@/lib/types";
 import { fromGrams } from "@/lib/units";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
@@ -30,6 +31,7 @@ export default function ActiveWorkoutPage() {
     exercises,
     hydrate,
     start,
+    repeatLast,
     addExercise,
     logSet,
     removeSet,
@@ -41,11 +43,20 @@ export default function ActiveWorkoutPage() {
   const [addOpen, setAddOpen] = React.useState(false);
   const [finishOpen, setFinishOpen] = React.useState(false);
   const [prName, setPrName] = React.useState<string | null>(null);
+  const [hasLast, setHasLast] = React.useState(false);
   const [exListRef] = useAutoAnimate<HTMLDivElement>();
 
   React.useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  React.useEffect(() => {
+    let alive = true;
+    getLastFinishedWorkout().then((w) => alive && setHasLast(!!w));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Auto-dismiss the PR celebration.
   React.useEffect(() => {
@@ -62,7 +73,7 @@ export default function ActiveWorkoutPage() {
   async function handleLog(
     weId: string,
     name: string,
-    input: { weightG: number; reps: number; type: SetType },
+    input: { weightG: number; reps: number; type: SetType; rpe?: number; tag?: SetTag },
   ) {
     const rec = await logSet(weId, input);
     if (input.type === "working") startRest(defaultRest, name);
@@ -75,6 +86,16 @@ export default function ActiveWorkoutPage() {
         /* no-op */
       }
     }
+  }
+
+  async function handleWarmups(weId: string, sets: { weightG: number; reps: number }[]) {
+    for (const s of sets) {
+      await logSet(weId, { weightG: s.weightG, reps: s.reps, type: "warmup" });
+    }
+  }
+
+  async function handleRepeatLast() {
+    await repeatLast();
   }
 
   async function handleFinish() {
@@ -102,9 +123,16 @@ export default function ActiveWorkoutPage() {
             Start a session and log sets as you go. Every rep saves instantly.
           </p>
         </div>
-        <Button size="lg" className="w-full max-w-xs" onClick={() => start()}>
-          Start workout
-        </Button>
+        <div className="flex w-full max-w-xs flex-col gap-2">
+          <Button size="lg" className="w-full" onClick={() => start()}>
+            Start workout
+          </Button>
+          {hasLast && (
+            <Button size="lg" variant="outline" className="w-full" onClick={handleRepeatLast}>
+              Repeat last session
+            </Button>
+          )}
+        </div>
         <Link href="/" className="text-sm text-muted underline-offset-4 hover:underline">
           Back to dashboard
         </Link>
@@ -161,6 +189,7 @@ export default function ActiveWorkoutPage() {
             exercise={ex}
             unit={unit}
             onLog={(input) => handleLog(ex.workoutExerciseId, ex.name, input)}
+            onWarmups={(sets) => handleWarmups(ex.workoutExerciseId, sets)}
             onDeleteSet={(id) => removeSet(id)}
             onRemove={() => removeExercise(ex.workoutExerciseId)}
           />

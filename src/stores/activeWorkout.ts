@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { Equipment, SetRecord, SetType } from "@/lib/types";
+import type { Equipment, LoadType, SetRecord, SetTag, SetType } from "@/lib/types";
 import {
   addExerciseToWorkout,
   clearPlannedTarget,
@@ -18,6 +18,7 @@ import {
   listWorkoutExercises,
   logSet as repoLogSet,
   removeWorkoutExercise,
+  repeatLastWorkout,
   startWorkout,
   updateSet as repoUpdateSet,
 } from "@/lib/repo";
@@ -27,6 +28,9 @@ export interface ActiveExercise {
   exerciseId: string;
   name: string;
   equipment: Equipment;
+  loadType?: LoadType;
+  /** Machine/setup memory surfaced while logging (update4 §5). */
+  settingsMemory?: string;
   sets: SetRecord[];
   lastPerformance?: LastPerformance;
   /** Pre-filled target from the Stats "apply suggestion" flow. */
@@ -42,15 +46,16 @@ interface ActiveWorkoutState {
 
   hydrate: () => Promise<void>;
   start: () => Promise<string>;
+  repeatLast: () => Promise<string | null>;
   addExercise: (exerciseId: string) => Promise<void>;
   removeExercise: (workoutExerciseId: string) => Promise<void>;
   logSet: (
     workoutExerciseId: string,
-    input: { weightG: number; reps: number; type?: SetType },
+    input: { weightG: number; reps: number; type?: SetType; rpe?: number; tag?: SetTag },
   ) => Promise<SetRecord | null>;
   editSet: (
     id: string,
-    patch: Partial<Pick<SetRecord, "weightG" | "reps" | "type" | "rpe">>,
+    patch: Partial<Pick<SetRecord, "weightG" | "reps" | "type" | "rpe" | "tag">>,
   ) => Promise<void>;
   removeSet: (id: string) => Promise<void>;
   finish: () => Promise<void>;
@@ -72,6 +77,8 @@ async function loadExercises(workoutId: string): Promise<ActiveExercise[]> {
         exerciseId: we.exerciseId,
         name: ex?.name ?? "Exercise",
         equipment: ex?.equipment ?? "other",
+        loadType: ex?.loadType,
+        settingsMemory: ex?.settingsMemory,
         sets,
         lastPerformance,
         plannedWeightG: ex?.plannedWeightG,
@@ -128,6 +135,20 @@ export const useActiveWorkout = create<ActiveWorkoutState>((set, get) => {
       return workout.id;
     },
 
+    repeatLast: async () => {
+      await ensureSeeded();
+      const workout = await repeatLastWorkout();
+      if (!workout) return null;
+      const exercises = await loadExercises(workout.id);
+      set({
+        status: "active",
+        workoutId: workout.id,
+        startedAt: workout.startedAt,
+        exercises,
+      });
+      return workout.id;
+    },
+
     addExercise: async (exerciseId) => {
       const { workoutId } = get();
       if (!workoutId) return;
@@ -144,6 +165,8 @@ export const useActiveWorkout = create<ActiveWorkoutState>((set, get) => {
             exerciseId,
             name: ex?.name ?? "Exercise",
             equipment: ex?.equipment ?? "other",
+            loadType: ex?.loadType,
+            settingsMemory: ex?.settingsMemory,
             sets: [],
             lastPerformance,
             plannedWeightG: ex?.plannedWeightG,
@@ -173,6 +196,8 @@ export const useActiveWorkout = create<ActiveWorkoutState>((set, get) => {
         weightG: input.weightG,
         reps: input.reps,
         type: input.type,
+        rpe: input.rpe,
+        tag: input.tag,
       });
       // A logged working set consumes any "applied" plan for this exercise.
       const consumePlan = record.type === "working" && target.plannedWeightG != null;

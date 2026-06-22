@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { useShallow } from "zustand/react/shallow";
 import { ChevronDownIcon, Icon, SwapIcon, equipmentIconName } from "@/components/icons";
-import { useSettings } from "@/stores/settings";
+import { programmingDefaultsFromSettings, useSettings } from "@/stores/settings";
 import { useToasts } from "@/stores/toast";
 import {
   buildExerciseSeries,
@@ -14,19 +16,23 @@ import {
   updateExercisePrescription,
   type ExerciseSessionEntry,
 } from "@/lib/repo";
-import { resolvePrescription } from "@/lib/progression";
+import { resolveExerciseProgramming } from "@/lib/progression";
 import {
   cn,
-  getProgressionSuggestion,
+  computeGoalProgress,
+  getSchemeSuggestion,
+  roundToLoadable,
   type ProgressionAction,
   type RepRange,
 } from "@/lib/utils";
-import type { Exercise, SetRecord } from "@/lib/types";
+import { SCHEMES } from "@/lib/training";
+import type { Exercise, ProgressionScheme, SetRecord } from "@/lib/types";
 import { displayWeight, fromGrams, toGrams } from "@/lib/units";
 import { formatRelativeDay } from "@/lib/date";
 import { Card, CardLabel } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
+import { Segmented } from "@/components/ui/Segmented";
 import { MetricChart } from "@/components/stats/MetricChart";
 
 type Metric = "oneRm" | "topWeight" | "volume";
@@ -58,7 +64,10 @@ function sessionBelowRange(entry: ExerciseSessionEntry, range: RepRange, unit: "
 
 export default function StatsPage() {
   const unit = useSettings((s) => s.unit);
-  const globalIncrement = useSettings((s) => s.weightIncrement);
+  const defaults = useSettings(useShallow(programmingDefaultsFromSettings));
+  const availablePlates = useSettings((s) => s.availablePlates);
+  const barWeight = useSettings((s) => s.barWeight);
+  const dumbbellIncrement = useSettings((s) => s.dumbbellIncrement);
   const showToast = useToasts((s) => s.show);
 
   const [exercises, setExercises] = React.useState<Exercise[]>([]);
@@ -88,27 +97,45 @@ export default function StatsPage() {
 
   const exercise = exercises.find((e) => e.id === selectedId) ?? null;
 
-  const prescription = React.useMemo(
-    () => (exercise ? resolvePrescription(exercise, globalIncrement) : null),
-    [exercise, globalIncrement],
+  const eff = React.useMemo(
+    () => (exercise ? resolveExerciseProgramming(exercise, defaults) : null),
+    [exercise, defaults],
   );
 
   const suggestion = React.useMemo(() => {
-    if (!prescription || history.length === 0) return null;
+    if (!exercise || !eff || history.length === 0) return null;
     let stalls = 0;
     for (const entry of history) {
-      if (sessionBelowRange(entry, prescription.repRange, unit)) stalls++;
+      if (sessionBelowRange(entry, eff.repRange, unit)) stalls++;
       else break;
     }
-    return getProgressionSuggestion({
+    const raw = getSchemeSuggestion(eff.scheme, {
       workingSets: workingSetsAtWorkingWeight(history[0].sets, unit),
-      targetSets: prescription.targetSets,
-      repRange: prescription.repRange,
-      weightIncrement: prescription.weightIncrement,
+      targetSets: eff.targetSets,
+      repRange: eff.repRange,
+      weightIncrement: eff.weightIncrement,
       consecutiveStalls: Math.max(0, stalls - 1),
       unitLabel: unit,
+      loadType: exercise.loadType,
     });
-  }, [prescription, history, unit]);
+    if (!raw) return null;
+    if (raw.suggestedWeight == null) return raw;
+    // Round the proposed weight to something actually loadable (update4 §4).
+    return {
+      ...raw,
+      suggestedWeight: roundToLoadable(raw.suggestedWeight, {
+        equipment: exercise.equipment,
+        availablePlates,
+        barWeight,
+        dumbbellIncrement,
+      }),
+    };
+  }, [exercise, eff, history, unit, availablePlates, barWeight, dumbbellIncrement]);
+
+  const goalProgress = React.useMemo(() => {
+    if (!exercise?.goal) return null;
+    return computeGoalProgress(exercise.goal, history.flatMap((h) => h.sets));
+  }, [exercise, history]);
 
   const series = React.useMemo(() => buildExerciseSeries(history, unit), [history, unit]);
   const chartData = series.map((p) => ({ performedAt: p.performedAt, value: p[metric] }));
@@ -120,18 +147,37 @@ export default function StatsPage() {
       toGrams(suggestion.suggestedWeight, unit),
       suggestion.suggestedReps,
     );
-    showToast({ message: `Next ${exercise.name}: ${suggestion.suggestedWeight}${unit} × ${suggestion.suggestedReps}`, durationMs: 3500 });
+    showToast({
+      message: `Next ${exercise.name}: ${suggestion.suggestedWeight}${unit} × ${suggestion.suggestedReps}`,
+      durationMs: 3500,
+    });
   }
 
-  async function savePrescription(p: {
-    defaultRepRangeMin: number;
-    defaultRepRangeMax: number;
-    defaultTargetSets: number;
-    defaultWeightIncrement: number;
-  }) {
+  async function savePrescription(p: PrescriptionSave) {
     if (!exercise) return;
-    await updateExercisePrescription(exercise.id, p);
-    setExercises((prev) => prev.map((e) => (e.id === exercise.id ? { ...e, ...p } : e)));
+    await updateExercisePrescription(exercise.id, {
+      defaultRepRangeMin: p.min,
+      defaultRepRangeMax: p.max,
+      defaultTargetSets: p.sets,
+      defaultWeightIncrement: p.inc,
+      defaultRestSeconds: p.rest,
+      progressionScheme: p.scheme,
+    });
+    setExercises((prev) =>
+      prev.map((e) =>
+        e.id === exercise.id
+          ? {
+              ...e,
+              defaultRepRangeMin: p.min,
+              defaultRepRangeMax: p.max,
+              defaultTargetSets: p.sets,
+              defaultWeightIncrement: p.inc,
+              defaultRestSeconds: p.rest,
+              progressionScheme: p.scheme,
+            }
+          : e,
+      ),
+    );
     setPrescriptionOpen(false);
   }
 
@@ -144,7 +190,7 @@ export default function StatsPage() {
 
       {!ready ? (
         <div className="h-72 animate-pulse rounded-[var(--radius-card)] bg-surface/70" />
-      ) : !exercise ? (
+      ) : !exercise || !eff ? (
         <p className="py-12 text-center text-sm text-muted">Add an exercise to get started.</p>
       ) : (
         <div className="flex flex-col gap-4">
@@ -169,8 +215,8 @@ export default function StatsPage() {
             </Card>
           ) : (
             <>
-              {/* Recommendation (headline) */}
-              {suggestion && prescription && (
+              {/* Recommendation (headline) — hidden for manual programming */}
+              {suggestion ? (
                 <Card className="border-crimson/25 p-4">
                   <div className="flex items-center justify-between">
                     <CardLabel>Next session</CardLabel>
@@ -198,13 +244,55 @@ export default function StatsPage() {
                     </div>
                   )}
                   <RepRangeBar
-                    range={prescription.repRange}
+                    range={eff.repRange}
                     currentReps={Math.max(
                       0,
                       ...history[0].sets.filter((s) => s.type === "working").map((s) => s.reps),
                     )}
                   />
                 </Card>
+              ) : (
+                <Card className="flex items-center gap-3 p-4">
+                  <Icon name="adjust" className="h-5 w-5 text-faint" />
+                  <p className="text-sm text-muted">
+                    Manual programming — suggestions are off. History and trends below.
+                  </p>
+                </Card>
+              )}
+
+              {/* Goal */}
+              {exercise.goal && goalProgress && (
+                <Link href={`/exercises/${exercise.id}`}>
+                  <Card
+                    className={cn(
+                      "p-4",
+                      goalProgress.reached && "border-lime/40 bg-lime/[0.06]",
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <CardLabel className={goalProgress.reached ? "text-lime" : undefined}>
+                        Goal
+                      </CardLabel>
+                      <span className="text-xs tabular-nums text-faint">
+                        {Math.round(goalProgress.pct * 100)}%
+                      </span>
+                    </div>
+                    <p className="mt-1 font-display text-lg font-semibold tabular-nums text-text">
+                      {exercise.goal.type === "reps"
+                        ? `${goalProgress.current} / ${goalProgress.target} reps`
+                        : `${displayWeight(goalProgress.current, unit)} / ${displayWeight(goalProgress.target, unit)} ${unit}`}
+                    </p>
+                    <div className="mt-2 h-2 rounded-full bg-line">
+                      <div
+                        className={cn(
+                          "h-2 rounded-full",
+                          goalProgress.reached ? "bg-lime" : "bg-arena",
+                        )}
+                        style={{ width: `${Math.max(4, goalProgress.pct * 100)}%` }}
+                      />
+                    </div>
+                  </Card>
+                </Link>
               )}
 
               {/* Charts */}
@@ -223,26 +311,27 @@ export default function StatsPage() {
                     </button>
                   ))}
                 </div>
-                <MetricChart data={chartData} unitSuffix={metric === "oneRm" || metric === "topWeight" ? ` ${unit}` : ""} />
+                <MetricChart
+                  data={chartData}
+                  unitSuffix={metric === "oneRm" || metric === "topWeight" ? ` ${unit}` : ""}
+                />
               </Card>
 
               {/* Prescription summary */}
-              {prescription && (
-                <button
-                  onClick={() => setPrescriptionOpen(true)}
-                  className="flex items-center justify-between rounded-2xl border border-line bg-surface/70 px-4 py-3 text-left active:bg-raised"
-                >
-                  <div>
-                    <CardLabel>Prescription</CardLabel>
-                    <p className="mt-0.5 text-sm text-text">
-                      {prescription.repRange.min}–{prescription.repRange.max} reps ·{" "}
-                      {prescription.targetSets} sets · +{prescription.weightIncrement}
-                      {unit}
-                    </p>
-                  </div>
-                  <ChevronDownIcon className="h-5 w-5 -rotate-90 text-muted" />
-                </button>
-              )}
+              <button
+                onClick={() => setPrescriptionOpen(true)}
+                className="flex items-center justify-between rounded-2xl border border-line bg-surface/70 px-4 py-3 text-left active:bg-raised"
+              >
+                <div>
+                  <CardLabel>Prescription</CardLabel>
+                  <p className="mt-0.5 text-sm text-text">
+                    {eff.repRange.min}–{eff.repRange.max} reps · {eff.targetSets} sets · +
+                    {eff.weightIncrement}
+                    {unit} · {SCHEMES.find((s) => s.id === eff.scheme)?.label}
+                  </p>
+                </div>
+                <ChevronDownIcon className="h-5 w-5 -rotate-90 text-muted" />
+              </button>
 
               {/* Session history */}
               <section className="flex flex-col gap-2">
@@ -291,14 +380,23 @@ export default function StatsPage() {
       </Sheet>
 
       {/* Prescription editor */}
-      {exercise && prescription && (
-        <PrescriptionSheet
-          open={prescriptionOpen}
-          onClose={() => setPrescriptionOpen(false)}
-          unit={unit}
-          initial={prescription}
-          onSave={savePrescription}
-        />
+      {exercise && eff && (
+        <Sheet open={prescriptionOpen} onClose={() => setPrescriptionOpen(false)} title="Prescription">
+          {prescriptionOpen && (
+            <PrescriptionForm
+              unit={unit}
+              initial={{
+                min: eff.repRange.min,
+                max: eff.repRange.max,
+                sets: eff.targetSets,
+                inc: eff.weightIncrement,
+                rest: eff.restSeconds,
+                scheme: eff.scheme,
+              }}
+              onSave={savePrescription}
+            />
+          )}
+        </Sheet>
       )}
     </div>
   );
@@ -369,32 +467,12 @@ function SessionHistoryRow({
 }
 
 interface PrescriptionSave {
-  defaultRepRangeMin: number;
-  defaultRepRangeMax: number;
-  defaultTargetSets: number;
-  defaultWeightIncrement: number;
-}
-
-function PrescriptionSheet({
-  open,
-  onClose,
-  unit,
-  initial,
-  onSave,
-}: {
-  open: boolean;
-  onClose: () => void;
-  unit: "kg" | "lb";
-  initial: { repRange: RepRange; targetSets: number; weightIncrement: number };
-  onSave: (p: PrescriptionSave) => void;
-}) {
-  // Rendered only while open (Sheet mounts children on open), so the form's
-  // initializers pick up the current values fresh — no effect needed to sync.
-  return (
-    <Sheet open={open} onClose={onClose} title="Prescription">
-      <PrescriptionForm unit={unit} initial={initial} onSave={onSave} />
-    </Sheet>
-  );
+  min: number;
+  max: number;
+  sets: number;
+  inc: number;
+  rest: number;
+  scheme: ProgressionScheme;
 }
 
 function PrescriptionForm({
@@ -403,35 +481,31 @@ function PrescriptionForm({
   onSave,
 }: {
   unit: "kg" | "lb";
-  initial: { repRange: RepRange; targetSets: number; weightIncrement: number };
+  initial: PrescriptionSave;
   onSave: (p: PrescriptionSave) => void;
 }) {
-  const [min, setMin] = React.useState(initial.repRange.min);
-  const [max, setMax] = React.useState(initial.repRange.max);
-  const [sets, setSets] = React.useState(initial.targetSets);
-  const [inc, setInc] = React.useState(initial.weightIncrement);
+  const [v, setV] = React.useState<PrescriptionSave>(initial);
+  const patch = (p: Partial<PrescriptionSave>) => setV((s) => ({ ...s, ...p }));
 
   return (
     <div className="flex flex-col gap-2 px-2 pb-4 pt-1">
-        <Row label="Rep range min" value={`${min}`} onDec={() => setMin((v) => Math.max(1, v - 1))} onInc={() => setMin((v) => Math.min(max, v + 1))} />
-        <Row label="Rep range max" value={`${max}`} onDec={() => setMax((v) => Math.max(min, v - 1))} onInc={() => setMax((v) => v + 1)} />
-        <Row label="Target sets" value={`${sets}`} onDec={() => setSets((v) => Math.max(1, v - 1))} onInc={() => setSets((v) => Math.min(10, v + 1))} />
-        <Row label="Weight increment" value={`${inc} ${unit}`} onDec={() => setInc((v) => Math.max(0.25, Math.round((v - 0.25) * 100) / 100))} onInc={() => setInc((v) => Math.round((v + 0.25) * 100) / 100)} />
-        <Button
-          size="lg"
-          className="mt-2"
-          onClick={() =>
-            onSave({
-              defaultRepRangeMin: min,
-              defaultRepRangeMax: max,
-              defaultTargetSets: sets,
-              defaultWeightIncrement: inc,
-            })
-          }
-        >
-          Save prescription
-        </Button>
-      </div>
+      <Row label="Rep range min" value={`${v.min}`} onDec={() => patch({ min: Math.max(1, v.min - 1) })} onInc={() => patch({ min: Math.min(v.max, v.min + 1) })} />
+      <Row label="Rep range max" value={`${v.max}`} onDec={() => patch({ max: Math.max(v.min, v.max - 1) })} onInc={() => patch({ max: v.max + 1 })} />
+      <Row label="Target sets" value={`${v.sets}`} onDec={() => patch({ sets: Math.max(1, v.sets - 1) })} onInc={() => patch({ sets: Math.min(10, v.sets + 1) })} />
+      <Row label="Rest" value={`${Math.floor(v.rest / 60)}:${`${v.rest % 60}`.padStart(2, "0")}`} onDec={() => patch({ rest: Math.max(15, v.rest - 15) })} onInc={() => patch({ rest: Math.min(600, v.rest + 15) })} />
+      <Row label="Weight increment" value={`${v.inc} ${unit}`} onDec={() => patch({ inc: Math.max(0.25, Math.round((v.inc - 0.25) * 100) / 100) })} onInc={() => patch({ inc: Math.round((v.inc + 0.25) * 100) / 100 })} />
+
+      <CardLabel className="mb-1 mt-3 px-1">Scheme</CardLabel>
+      <Segmented
+        options={SCHEMES.map((s) => ({ value: s.id, label: s.label }))}
+        value={v.scheme}
+        onChange={(scheme) => patch({ scheme })}
+      />
+
+      <Button size="lg" className="mt-3" onClick={() => onSave(v)}>
+        Save prescription
+      </Button>
+    </div>
   );
 }
 
