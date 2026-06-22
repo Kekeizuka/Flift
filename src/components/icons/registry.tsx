@@ -26,6 +26,8 @@ import {
   PauseIcon,
   ResetIcon,
   UndoIcon,
+  GripIcon,
+  CopyIcon,
 } from "./actions";
 import {
   ChevronLeftIcon,
@@ -80,6 +82,8 @@ const REGISTRY = {
   pause: PauseIcon,
   reset: ResetIcon,
   undo: UndoIcon,
+  grip: GripIcon,
+  copy: CopyIcon,
   chevronLeft: ChevronLeftIcon,
   chevronRight: ChevronRightIcon,
   chevronDown: ChevronDownIcon,

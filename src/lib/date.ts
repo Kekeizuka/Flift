@@ -47,3 +47,74 @@ export function formatDuration(ms: number): string {
   const m = totalMin % 60;
   return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
+
+/* ------------------------------- Calendar -------------------------------- */
+// Pure month-grid helpers (update6 §2). No date-fns dependency — native Date,
+// local time, consistent with the rest of this module.
+
+export function startOfMonth(d: Date | number): Date {
+  const date = startOfDay(d);
+  date.setDate(1);
+  return date;
+}
+
+export function addMonths(d: Date | number, months: number): Date {
+  const date = new Date(d);
+  date.setDate(1); // avoid month-end overflow (e.g. Jan 31 + 1mo)
+  date.setMonth(date.getMonth() + months);
+  return date;
+}
+
+export function isSameDay(a: Date | number, b: Date | number): boolean {
+  return dayKey(a) === dayKey(b);
+}
+
+/** "June 2026" style header. */
+export function formatMonthYear(d: Date | number): string {
+  return new Date(d).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+
+/** Single-letter-ish weekday headers, rotated to the configured first day. */
+export function weekdayLabels(weekStartsOn: 0 | 1 = 1): string[] {
+  const base = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return Array.from({ length: 7 }, (_, i) => base[(i + weekStartsOn) % 7]);
+}
+
+/**
+ * Weeks (rows of 7 local-midnight Dates) covering the month of `d`, padded with
+ * the leading/trailing days needed to fill whole weeks — the standard calendar
+ * grid. Out-of-month days are included so callers can render them dimmed.
+ */
+export function monthGrid(d: Date | number, weekStartsOn: 0 | 1 = 1): Date[][] {
+  const first = startOfMonth(d);
+  const monthIndex = first.getMonth();
+  let cursor = startOfWeek(first, weekStartsOn);
+  const weeks: Date[][] = [];
+  // Real months span 4–6 visual weeks; cap at 6 as a hard safety bound.
+  for (let w = 0; w < 6; w++) {
+    const week: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      week.push(cursor);
+      cursor = addDays(cursor, 1);
+    }
+    weeks.push(week);
+    // Stop once a week has spilled fully past the target month.
+    if (week[6].getMonth() !== monthIndex && week[6] > first) break;
+  }
+  return weeks;
+}
+
+/**
+ * Current consecutive-day training streak ending today (or yesterday, so a rest
+ * day before logging today doesn't reset it). `days` is a set of YYYY-MM-DD keys.
+ */
+export function currentDayStreak(days: Set<string>, today: number): number {
+  let cursor = startOfDay(today);
+  if (!days.has(dayKey(cursor))) cursor = addDays(cursor, -1);
+  let streak = 0;
+  while (days.has(dayKey(cursor))) {
+    streak++;
+    cursor = addDays(cursor, -1);
+  }
+  return streak;
+}

@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { CloseIcon } from "@/components/icons";
+import { useHydrated } from "@/lib/hooks";
 
 interface SheetProps {
   open: boolean;
@@ -11,9 +13,15 @@ interface SheetProps {
   children: React.ReactNode;
 }
 
-/** Bottom sheet with spring slide-up + drag-to-dismiss. Thumb-friendly. */
+/**
+ * Bottom sheet with spring slide-up + drag-to-dismiss. Thumb-friendly.
+ * Rendered through a portal to `document.body` so its `fixed` overlay is always
+ * viewport-relative — even when a page wrapper is mid-transform during a route
+ * transition (update6 §1).
+ */
 export function Sheet({ open, onClose, title, children }: SheetProps) {
   const reduce = useReducedMotion();
+  const hydrated = useHydrated();
 
   React.useEffect(() => {
     if (!open) return;
@@ -26,7 +34,9 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
     };
   }, [open, onClose]);
 
-  return (
+  if (!hydrated) return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-50">
@@ -71,6 +81,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

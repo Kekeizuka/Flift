@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
 import { Icon, type IconName, PlusIcon } from "@/components/icons";
 import { WaveTap } from "@/components/ui/WaveTap";
+import { useActiveWorkout } from "@/stores/activeWorkout";
+import { useStartSheet } from "@/stores/startSheet";
 import { cn } from "@/lib/utils";
 
 const tabs: { href: string; label: string; icon: IconName }[] = [
   { href: "/", label: "Home", icon: "home" },
   { href: "/history", label: "History", icon: "history" },
+  { href: "/routines", label: "Days", icon: "routines" },
   { href: "/stats", label: "Stats", icon: "progress" },
-  { href: "/timer", label: "Timer", icon: "timer" },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -20,11 +22,18 @@ function isActive(pathname: string, href: string) {
 
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const reduce = useReducedMotion();
+  const status = useActiveWorkout((s) => s.status);
+  const openStart = useStartSheet((s) => s.openSheet);
   const [left, right] = [tabs.slice(0, 2), tabs.slice(2)];
 
   // The active-logging screen runs a focused mode with its own docked actions.
   if (pathname === "/workout/active") return null;
+
+  // Resume straight into an in-progress session; otherwise offer the choices.
+  const handleStart = () =>
+    status === "active" ? router.push("/workout/active") : openStart();
 
   return (
     <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-40 lg:hidden">
@@ -34,14 +43,19 @@ export function BottomNav() {
             <NavTab key={tab.href} {...tab} active={isActive(pathname, tab.href)} reduce={!!reduce} />
           ))}
 
-          <Link href="/workout/active" aria-label="Start workout" className="shrink-0">
+          <button
+            type="button"
+            onClick={handleStart}
+            aria-label={status === "active" ? "Resume workout" : "Start workout"}
+            className="shrink-0"
+          >
             <WaveTap
               variant="main"
               className="bg-arena glow-crimson -mt-8 h-16 w-16 rounded-full border-4 border-ink text-white"
             >
               <PlusIcon className="h-7 w-7" strokeWidth={2.5} />
             </WaveTap>
-          </Link>
+          </button>
 
           {right.map((tab) => (
             <NavTab key={tab.href} {...tab} active={isActive(pathname, tab.href)} reduce={!!reduce} />

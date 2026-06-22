@@ -1,7 +1,16 @@
 "use client";
 
 import { create } from "zustand";
-import type { Equipment, LoadType, SetRecord, SetTag, SetType } from "@/lib/types";
+import type {
+  Equipment,
+  Exercise,
+  LoadType,
+  RoutineExercise,
+  SetRecord,
+  SetTag,
+  SetType,
+  WorkoutExercise,
+} from "@/lib/types";
 import {
   addExerciseToWorkout,
   clearPlannedTarget,
@@ -14,14 +23,18 @@ import {
   getExercisesByIds,
   getLastPerformance,
   type LastPerformance,
+  listRoutineExercises,
   listSets,
   listWorkoutExercises,
   logSet as repoLogSet,
   removeWorkoutExercise,
   repeatLastWorkout,
+  startFromRoutine as repoStartFromRoutine,
   startWorkout,
   updateSet as repoUpdateSet,
 } from "@/lib/repo";
+import { resolveExerciseProgramming } from "@/lib/progression";
+import { programmingDefaultsFromSettings, useSettings } from "@/stores/settings";
 
 export interface ActiveExercise {
   workoutExerciseId: string;
@@ -36,6 +49,8 @@ export interface ActiveExercise {
   /** Pre-filled target from the Stats "apply suggestion" flow. */
   plannedWeightG?: number;
   plannedReps?: number;
+  /** Resolved rep-range floor — seeds the rep stepper when there's no history. */
+  targetReps?: number;
 }
 
 interface ActiveWorkoutState {
@@ -46,8 +61,10 @@ interface ActiveWorkoutState {
 
   hydrate: () => Promise<void>;
   start: () => Promise<string>;
+  startFromRoutine: (routineId: string) => Promise<string>;
   repeatLast: () => Promise<string | null>;
   addExercise: (exerciseId: string) => Promise<void>;
+  addExercises: (exerciseIds: string[]) => Promise<void>;
   removeExercise: (workoutExerciseId: string) => Promise<void>;
   logSet: (
     workoutExerciseId: string,
@@ -62,9 +79,43 @@ interface ActiveWorkoutState {
   discard: () => Promise<void>;
 }
 
-async function loadExercises(workoutId: string): Promise<ActiveExercise[]> {
+function buildActive(
+  we: WorkoutExercise,
+  ex: Exercise | undefined,
+  sets: SetRecord[],
+  lastPerformance: LastPerformance | undefined,
+  targetReps: number | undefined,
+): ActiveExercise {
+  return {
+    workoutExerciseId: we.id,
+    exerciseId: we.exerciseId,
+    name: ex?.name ?? "Exercise",
+    equipment: ex?.equipment ?? "other",
+    loadType: ex?.loadType,
+    settingsMemory: ex?.settingsMemory,
+    sets,
+    lastPerformance,
+    plannedWeightG: ex?.plannedWeightG,
+    plannedReps: ex?.plannedReps,
+    targetReps,
+  };
+}
+
+/** Rep-range floor for an exercise, honouring routine → exercise → global overrides. */
+function targetRepsFor(ex: Exercise | undefined, re: RoutineExercise | null): number {
+  const defaults = programmingDefaultsFromSettings(useSettings.getState());
+  return resolveExerciseProgramming(ex ?? null, defaults, re).repRange.min;
+}
+
+async function loadExercises(workoutId: string, routineId?: string): Promise<ActiveExercise[]> {
   const wes = await listWorkoutExercises(workoutId);
   const exMap = await getExercisesByIds(wes.map((w) => w.exerciseId));
+
+  const reMap = new Map<string, RoutineExercise>();
+  if (routineId) {
+    for (const r of await listRoutineExercises(routineId)) reMap.set(r.exerciseId, r);
+  }
+
   return Promise.all(
     wes.map(async (we) => {
       const [sets, lastPerformance] = await Promise.all([
@@ -72,18 +123,7 @@ async function loadExercises(workoutId: string): Promise<ActiveExercise[]> {
         getLastPerformance(we.exerciseId, workoutId),
       ]);
       const ex = exMap.get(we.exerciseId);
-      return {
-        workoutExerciseId: we.id,
-        exerciseId: we.exerciseId,
-        name: ex?.name ?? "Exercise",
-        equipment: ex?.equipment ?? "other",
-        loadType: ex?.loadType,
-        settingsMemory: ex?.settingsMemory,
-        sets,
-        lastPerformance,
-        plannedWeightG: ex?.plannedWeightG,
-        plannedReps: ex?.plannedReps,
-      } satisfies ActiveExercise;
+      return buildActive(we, ex, sets, lastPerformance, targetRepsFor(ex, reMap.get(we.exerciseId) ?? null));
     }),
   );
 }
@@ -114,7 +154,7 @@ export const useActiveWorkout = create<ActiveWorkoutState>((set, get) => {
         set({ status: "idle", workoutId: null, startedAt: null, exercises: [] });
         return;
       }
-      const exercises = await loadExercises(workout.id);
+      const exercises = await loadExercises(workout.id, workout.routineId);
       set({
         status: "active",
         workoutId: workout.id,
@@ -135,11 +175,24 @@ export const useActiveWorkout = create<ActiveWorkoutState>((set, get) => {
       return workout.id;
     },
 
+    startFromRoutine: async (routineId) => {
+      await ensureSeeded();
+      const workout = await repoStartFromRoutine(routineId);
+      const exercises = await loadExercises(workout.id, workout.routineId);
+      set({
+        status: "active",
+        workoutId: workout.id,
+        startedAt: workout.startedAt,
+        exercises,
+      });
+      return workout.id;
+    },
+
     repeatLast: async () => {
       await ensureSeeded();
       const workout = await repeatLastWorkout();
       if (!workout) return null;
-      const exercises = await loadExercises(workout.id);
+      const exercises = await loadExercises(workout.id, workout.routineId);
       set({
         status: "active",
         workoutId: workout.id,
@@ -158,22 +211,13 @@ export const useActiveWorkout = create<ActiveWorkoutState>((set, get) => {
         getLastPerformance(exerciseId, workoutId),
       ]);
       set((state) => ({
-        exercises: [
-          ...state.exercises,
-          {
-            workoutExerciseId: we.id,
-            exerciseId,
-            name: ex?.name ?? "Exercise",
-            equipment: ex?.equipment ?? "other",
-            loadType: ex?.loadType,
-            settingsMemory: ex?.settingsMemory,
-            sets: [],
-            lastPerformance,
-            plannedWeightG: ex?.plannedWeightG,
-            plannedReps: ex?.plannedReps,
-          },
-        ],
+        exercises: [...state.exercises, buildActive(we, ex, [], lastPerformance, targetRepsFor(ex, null))],
       }));
+    },
+
+    addExercises: async (exerciseIds) => {
+      // Sequential so each WorkoutExercise picks up the next order index.
+      for (const id of exerciseIds) await get().addExercise(id);
     },
 
     removeExercise: async (workoutExerciseId) => {

@@ -16,7 +16,7 @@ import { fromGrams } from "@/lib/units";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
 import { ExerciseLogCard } from "@/components/workout/ExerciseLogCard";
-import { AddExerciseSheet } from "@/components/workout/AddExerciseSheet";
+import { ExercisePickerSheet } from "@/components/workout/ExercisePickerSheet";
 import { ElapsedClock } from "@/components/workout/ElapsedClock";
 
 export default function ActiveWorkoutPage() {
@@ -32,7 +32,7 @@ export default function ActiveWorkoutPage() {
     hydrate,
     start,
     repeatLast,
-    addExercise,
+    addExercises,
     logSet,
     removeSet,
     removeExercise,
@@ -225,11 +225,11 @@ export default function ActiveWorkoutPage() {
         </div>
       </div>
 
-      <AddExerciseSheet
+      <ExercisePickerSheet
         open={addOpen}
         onClose={() => setAddOpen(false)}
-        addedIds={addedIds}
-        onAdd={(id) => addExercise(id)}
+        existingIds={addedIds}
+        onConfirm={(ids) => addExercises(ids)}
       />
 
       {/* PR celebration */}

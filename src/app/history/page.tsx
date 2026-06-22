@@ -13,13 +13,20 @@ import {
 } from "@/lib/repo";
 import { RecentSessionCard } from "@/components/dashboard/RecentSessionCard";
 import { SwipeToDelete } from "@/components/ui/SwipeToDelete";
+import { Segmented } from "@/components/ui/Segmented";
+import { WorkoutCalendar } from "@/components/calendar/WorkoutCalendar";
+
+type View = "list" | "calendar";
 
 export default function HistoryPage() {
   const router = useRouter();
   const unit = useSettings((s) => s.unit);
+  const firstDayOfWeek = useSettings((s) => s.firstDayOfWeek);
   const showToast = useToasts((s) => s.show);
   const [sessions, setSessions] = React.useState<WorkoutSummary[]>([]);
   const [ready, setReady] = React.useState(false);
+  const [today, setToday] = React.useState(0);
+  const [view, setView] = React.useState<View>("list");
   const [listRef] = useAutoAnimate<HTMLDivElement>();
 
   // Pending soft-deletes: id → commit timer. Flushed on unmount so a delete is
@@ -28,6 +35,7 @@ export default function HistoryPage() {
 
   React.useEffect(() => {
     (async () => {
+      setToday(Date.now());
       const ws = await listAllWorkouts();
       setSessions(await Promise.all(ws.map((w) => getWorkoutSummary(w.id))));
       setReady(true);
@@ -71,10 +79,20 @@ export default function HistoryPage() {
       <header className="px-1 pb-3 pt-7">
         <h1 className="font-display text-2xl font-bold tracking-tight lg:text-3xl">History</h1>
         <p className="text-sm text-muted">
-          {ready ? `${sessions.length} ${sessions.length === 1 ? "session" : "sessions"}` : "…"} ·
-          swipe to delete
+          {ready ? `${sessions.length} ${sessions.length === 1 ? "session" : "sessions"}` : "…"}
+          {view === "list" && ready && sessions.length > 0 && " · swipe to delete"}
         </p>
       </header>
+
+      <Segmented
+        className="mb-3"
+        options={[
+          { value: "list", label: "List" },
+          { value: "calendar", label: "Calendar" },
+        ]}
+        value={view}
+        onChange={setView}
+      />
 
       {!ready ? (
         <div className="flex flex-col gap-2">
@@ -82,6 +100,13 @@ export default function HistoryPage() {
             <div key={i} className="h-[4.5rem] animate-pulse rounded-[var(--radius-card)] bg-surface/70" />
           ))}
         </div>
+      ) : view === "calendar" ? (
+        <WorkoutCalendar
+          sessions={sessions}
+          today={today}
+          weekStartsOn={firstDayOfWeek}
+          unit={unit}
+        />
       ) : sessions.length === 0 ? (
         <div className="mt-6 rounded-[var(--radius-card)] border border-dashed border-line py-12 text-center">
           <p className="font-medium text-text">No sessions yet</p>

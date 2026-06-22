@@ -77,6 +77,7 @@ export const routineSchema = z.object({
   id: z.string(),
   name: z.string(),
   createdAt: z.number(),
+  lastPerformedAt: z.number().optional(),
 });
 
 export const routineExerciseSchema = z.object({

@@ -92,6 +92,13 @@ export default function DashboardPage() {
             </div>
           )}
           <Link
+            href="/timer"
+            aria-label="Rest timer"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-line/70 bg-surface/80 text-muted transition-colors active:bg-raised active:text-text lg:hidden"
+          >
+            <Icon name="timer" className="h-5 w-5" />
+          </Link>
+          <Link
             href="/exercises"
             aria-label="Exercise library"
             className="flex h-10 w-10 items-center justify-center rounded-full border border-line/70 bg-surface/80 text-muted transition-colors active:bg-raised active:text-text"

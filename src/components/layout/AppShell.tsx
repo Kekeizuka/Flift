@@ -7,6 +7,7 @@ import { MotionProvider } from "./MotionProvider";
 import { Onboarding } from "./Onboarding";
 import { RestTimerBar } from "@/components/workout/RestTimerBar";
 import { RestTimerController } from "@/components/workout/RestTimerController";
+import { StartWorkoutSheet } from "@/components/workout/StartWorkoutSheet";
 import { Toaster } from "@/components/ui/Toaster";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <ThemeController />
         <RestTimerController />
         <RestTimerBar />
+        <StartWorkoutSheet />
         <Toaster />
         <Onboarding />
       </div>

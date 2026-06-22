@@ -65,7 +65,9 @@ export function ExerciseLogCard({
     if (lastTime) {
       return { weight: displayWeight(lastTime.weightG, unit), reps: lastTime.reps };
     }
-    return { weight: unit === "kg" ? 20 : 45, reps: 8 };
+    // No history yet — seed reps from the resolved rep-range floor (e.g. a
+    // Workout Day's target) so logging starts from the right place.
+    return { weight: unit === "kg" ? 20 : 45, reps: exercise.targetReps ?? 8 };
     // Seed once on mount; subsequent sets keep the user's last entry.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

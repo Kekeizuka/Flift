@@ -24,7 +24,39 @@ export async function getActiveWorkout(): Promise<Workout | undefined> {
 }
 
 export async function endWorkout(id: string): Promise<void> {
-  await db.workouts.update(id, { endedAt: Date.now() });
+  const endedAt = Date.now();
+  await db.workouts.update(id, { endedAt });
+  // If this session came from a Workout Day, stamp the day as "last performed"
+  // (update6 §3) so its card label + ordering reflect real use.
+  const workout = await db.workouts.get(id);
+  if (workout?.routineId) {
+    const routine = await db.routines.get(workout.routineId);
+    if (routine) await db.routines.update(workout.routineId, { lastPerformedAt: endedAt });
+  }
+}
+
+/**
+ * Start a fresh session pre-loaded with all of a Workout Day's exercises, in
+ * order (update6 §3). Targets + last-used weights surface per-card from the
+ * routine programming and previous-performance hints — logging is immediate.
+ */
+export async function startFromRoutine(routineId: string): Promise<Workout> {
+  const rows = await db.routineExercises.where("routineId").equals(routineId).toArray();
+  rows.sort((a, b) => a.order - b.order);
+
+  const workout: Workout = { id: newId(), startedAt: Date.now(), routineId };
+  const wes: WorkoutExercise[] = rows.map((re, i) => ({
+    id: newId(),
+    workoutId: workout.id,
+    exerciseId: re.exerciseId,
+    order: i,
+  }));
+
+  await db.transaction("rw", db.workouts, db.workoutExercises, async () => {
+    await db.workouts.put(workout);
+    if (wes.length) await db.workoutExercises.bulkPut(wes);
+  });
+  return workout;
 }
 
 export async function updateWorkoutNote(id: string, note: string): Promise<void> {

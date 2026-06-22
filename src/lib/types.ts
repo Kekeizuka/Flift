@@ -119,6 +119,8 @@ export interface Routine {
   id: ID;
   name: string;
   createdAt: number;
+  /** Last time a session was started/finished from this day — for the card label + sorting (update6 §3). */
+  lastPerformedAt?: number;
 }
 
 export interface RoutineExercise {

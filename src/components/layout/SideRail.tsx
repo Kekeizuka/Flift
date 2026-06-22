@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Icon, type IconName, PlusIcon } from "@/components/icons";
 import { WaveTap } from "@/components/ui/WaveTap";
+import { useActiveWorkout } from "@/stores/activeWorkout";
+import { useStartSheet } from "@/stores/startSheet";
 import { cn } from "@/lib/utils";
 
 const tabs: { href: string; label: string; icon: IconName }[] = [
   { href: "/", label: "Home", icon: "home" },
   { href: "/history", label: "History", icon: "history" },
+  { href: "/routines", label: "Workout Days", icon: "routines" },
   { href: "/stats", label: "Stats", icon: "progress" },
   { href: "/timer", label: "Timer", icon: "timer" },
   { href: "/exercises", label: "Library", icon: "library" },
@@ -22,6 +25,12 @@ function isActive(pathname: string, href: string) {
 /** Desktop navigation — replaces the bottom tab bar at `lg` and up. */
 export function SideRail() {
   const pathname = usePathname();
+  const router = useRouter();
+  const status = useActiveWorkout((s) => s.status);
+  const openStart = useStartSheet((s) => s.openSheet);
+
+  const handleStart = () =>
+    status === "active" ? router.push("/workout/active") : openStart();
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col py-8 lg:flex">
@@ -50,14 +59,15 @@ export function SideRail() {
         })}
       </nav>
 
-      <Link href="/workout/active" aria-label="Start workout" className="mt-6">
+      <button type="button" onClick={handleStart} aria-label="Start workout" className="mt-6">
         <WaveTap
           variant="main"
           className="bg-arena glow-crimson w-full gap-2 rounded-full px-4 py-3 font-semibold text-white"
         >
-          <PlusIcon className="h-5 w-5" strokeWidth={2.5} /> Start workout
+          <PlusIcon className="h-5 w-5" strokeWidth={2.5} />{" "}
+          {status === "active" ? "Resume workout" : "Start workout"}
         </WaveTap>
-      </Link>
+      </button>
     </aside>
   );
 }

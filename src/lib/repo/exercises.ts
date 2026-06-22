@@ -8,9 +8,24 @@ import type {
   MuscleGroup,
 } from "@/lib/types";
 
-/** Seed the bundled library on first run. Idempotent + versioned (update3 §6). */
+let seedingPromise: Promise<void> | null = null;
+
+/**
+ * Seed the bundled library on first run. Idempotent + versioned (update3 §6).
+ * An in-memory lock collapses concurrent callers (e.g. the dashboard hydrate and
+ * the global status refresh firing on the same load) into a single run, so the
+ * library can never double-seed before the first pass finishes (update6).
+ */
 export async function ensureSeeded(): Promise<void> {
-  await seedExerciseLibrary();
+  if (!seedingPromise) {
+    seedingPromise = seedExerciseLibrary()
+      .then(() => undefined)
+      .catch((err) => {
+        seedingPromise = null; // let a transient failure be retried
+        throw err;
+      });
+  }
+  return seedingPromise;
 }
 
 export async function listExercises(): Promise<Exercise[]> {
