@@ -93,3 +93,21 @@ export const UndoIcon = (p: IconProps) => (
     <path d="M4.5 11.5H14a5.5 5.5 0 0 1 0 11h-1.5" />
   </IconBase>
 );
+
+export const GripIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none" />
+  </IconBase>
+);
+
+export const CopyIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <rect x="9" y="9" width="11" height="11" rx="2.5" />
+    <path d="M5 15.5A2 2 0 0 1 3.5 13.5V6A2.5 2.5 0 0 1 6 3.5h7.5A2 2 0 0 1 15.5 5" />
+  </IconBase>
+);

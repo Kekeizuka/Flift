@@ -1,0 +1,172 @@
+[
+  {
+    "id": "Bulgarian_Split_Squat",
+    "name": "Bulgarian Split Squat",
+    "force": "push",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "equipment": "dumbbell",
+    "primaryMuscles": ["quadriceps"],
+    "secondaryMuscles": ["glutes", "hamstrings"],
+    "instructions": [
+      "Stand a stride-length in front of a bench and rest the top of your rear foot on it.",
+      "Holding a dumbbell in each hand, lower until your front thigh is roughly parallel to the floor, keeping the front knee tracking over the foot.",
+      "Drive through the front heel to stand back up. Finish all reps, then switch legs."
+    ],
+    "category": "strength",
+    "images": []
+  },
+  {
+    "id": "Pec_Deck",
+    "name": "Pec Deck",
+    "force": "push",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "equipment": "machine",
+    "primaryMuscles": ["chest"],
+    "secondaryMuscles": [],
+    "instructions": [
+      "Sit with your back flat against the pad and forearms on the pads (or hands on the handles).",
+      "Squeeze your chest to bring the pads together in front of you.",
+      "Slowly reverse to a comfortable stretch and repeat."
+    ],
+    "category": "strength",
+    "images": []
+  },
+  {
+    "id": "Reverse_Pec_Deck",
+    "name": "Reverse Pec Deck",
+    "force": "pull",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "equipment": "machine",
+    "primaryMuscles": ["shoulders"],
+    "secondaryMuscles": ["middle back"],
+    "instructions": [
+      "Sit facing the pad with arms extended forward holding the handles.",
+      "Drive the handles back in an arc by squeezing your rear delts and upper back.",
+      "Return under control and repeat."
+    ],
+    "category": "strength",
+    "images": []
+  },
+  {
+    "id": "Pendlay_Row",
+    "name": "Pendlay Row",
+    "force": "pull",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "equipment": "barbell",
+    "primaryMuscles": ["middle back"],
+    "secondaryMuscles": ["lats", "biceps"],
+    "instructions": [
+      "Set up over a barbell with a flat back and hips high, torso roughly parallel to the floor.",
+      "Explosively row the bar to your lower chest, then return it to the floor each rep (dead-stop).",
+      "Keep the torso angle fixed throughout."
+    ],
+    "category": "strength",
+    "images": []
+  },
+  {
+    "id": "Chest_Press_Machine",
+    "name": "Chest Press Machine",
+    "force": "push",
+    "level": "beginner",
+    "mechanic": "compound",
+    "equipment": "machine",
+    "primaryMuscles": ["chest"],
+    "secondaryMuscles": ["triceps", "shoulders"],
+    "instructions": [
+      "Sit with the handles aligned to mid-chest and back flat against the pad.",
+      "Press the handles forward until your arms are nearly straight.",
+      "Return under control to a comfortable stretch and repeat."
+    ],
+    "category": "strength",
+    "images": []
+  },
+  {
+    "id": "Close_Grip_Bench_Press",
+    "name": "Close-Grip Bench Press",
+    "force": "push",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "equipment": "barbell",
+    "primaryMuscles": ["triceps"],
+    "secondaryMuscles": ["chest", "shoulders"],
+    "instructions": [
+      "Lie on a flat bench and grip the bar about shoulder-width apart.",
+      "Lower the bar to your lower chest, keeping your elbows tucked.",
+      "Press back up by extending the elbows, driving through the triceps."
+    ],
+    "category": "strength",
+    "images": []
+  },
+  {
+    "id": "Smith_Machine_Squat",
+    "name": "Smith Machine Squat",
+    "force": "push",
+    "level": "beginner",
+    "mechanic": "compound",
+    "equipment": "machine",
+    "primaryMuscles": ["quadriceps"],
+    "secondaryMuscles": ["glutes", "hamstrings"],
+    "instructions": [
+      "Set the bar across your upper back with feet slightly forward of the bar path.",
+      "Unrack, then squat until your thighs are at least parallel.",
+      "Drive up through your whole foot and re-rack when finished."
+    ],
+    "category": "strength",
+    "images": []
+  },
+  {
+    "id": "Cable_Lateral_Raise",
+    "name": "Cable Lateral Raise",
+    "force": "pull",
+    "level": "intermediate",
+    "mechanic": "isolation",
+    "equipment": "cable",
+    "primaryMuscles": ["shoulders"],
+    "secondaryMuscles": [],
+    "instructions": [
+      "Stand side-on to a low pulley and hold the handle in the outside hand.",
+      "Raise your arm out to the side to about shoulder height with a slight bend in the elbow.",
+      "Lower under control. Finish the set, then switch sides."
+    ],
+    "category": "strength",
+    "images": []
+  },
+  {
+    "id": "Machine_Shoulder_Press",
+    "name": "Machine Shoulder Press",
+    "force": "push",
+    "level": "beginner",
+    "mechanic": "compound",
+    "equipment": "machine",
+    "primaryMuscles": ["shoulders"],
+    "secondaryMuscles": ["triceps"],
+    "instructions": [
+      "Sit with the handles at shoulder height and back against the pad.",
+      "Press the handles overhead until your arms are nearly straight.",
+      "Lower under control to shoulder height and repeat."
+    ],
+    "category": "strength",
+    "images": []
+  },
+  {
+    "id": "Seated_Leg_Curl",
+    "name": "Seated Leg Curl",
+    "force": "pull",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "equipment": "machine",
+    "primaryMuscles": ["hamstrings"],
+    "secondaryMuscles": ["calves"],
+    "instructions": [
+      "Sit with the pad on top of your lower shins and the back pad snug.",
+      "Curl your heels down and under by contracting your hamstrings.",
+      "Return under control to the start and repeat."
+    ],
+    "category": "strength",
+    "images": []
+  }
+]

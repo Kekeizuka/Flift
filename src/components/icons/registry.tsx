@@ -1,4 +1,5 @@
 import type { Equipment, MuscleGroup } from "@/lib/types";
+import { normalizeMuscleGroup } from "@/lib/db/seed/normalize";
 import type { IconProps } from "./IconBase";
 import { HomeIcon, HistoryIcon, RoutinesIcon, ProgressIcon, SettingsIcon, ProfileIcon } from "./nav";
 import {
@@ -25,6 +26,8 @@ import {
   PauseIcon,
   ResetIcon,
   UndoIcon,
+  GripIcon,
+  CopyIcon,
 } from "./actions";
 import {
   ChevronLeftIcon,
@@ -37,6 +40,11 @@ import {
   MoreIcon,
   LayersIcon,
   TrendingUpIcon,
+  TargetIcon,
+  AdjustIcon,
+  PaletteIcon,
+  BellIcon,
+  CalendarIcon,
 } from "./ui";
 import { BoltIcon, FlameIcon, TrophyIcon } from "./achievement";
 
@@ -74,6 +82,8 @@ const REGISTRY = {
   pause: PauseIcon,
   reset: ResetIcon,
   undo: UndoIcon,
+  grip: GripIcon,
+  copy: CopyIcon,
   chevronLeft: ChevronLeftIcon,
   chevronRight: ChevronRightIcon,
   chevronDown: ChevronDownIcon,
@@ -84,6 +94,11 @@ const REGISTRY = {
   more: MoreIcon,
   layers: LayersIcon,
   trendingUp: TrendingUpIcon,
+  target: TargetIcon,
+  adjust: AdjustIcon,
+  palette: PaletteIcon,
+  bell: BellIcon,
+  calendar: CalendarIcon,
   bolt: BoltIcon,
   flame: FlameIcon,
   trophy: TrophyIcon,
@@ -111,16 +126,16 @@ const EQUIPMENT_ICON: Record<Equipment, IconName> = {
 const MUSCLE_ICON: Record<MuscleGroup, IconName> = {
   chest: "chest",
   back: "back",
+  legs: "legs",
   shoulders: "shoulders",
-  biceps: "arms",
-  triceps: "arms",
-  quads: "legs",
-  hamstrings: "legs",
-  glutes: "legs",
-  calves: "legs",
+  arms: "arms",
   core: "core",
-  forearms: "arms",
 };
 
-export const equipmentIconName = (e: Equipment): IconName => EQUIPMENT_ICON[e];
-export const muscleIconName = (m: MuscleGroup): IconName => MUSCLE_ICON[m];
+export const equipmentIconName = (e: Equipment): IconName => EQUIPMENT_ICON[e] ?? "plate";
+
+/** Tolerant of coarse groups, legacy fine tokens, and raw source muscle names. */
+export const muscleIconName = (m: MuscleGroup | string): IconName => {
+  const g = normalizeMuscleGroup(m) ?? (m as MuscleGroup);
+  return MUSCLE_ICON[g] ?? "dumbbell";
+};

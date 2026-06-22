@@ -1,12 +1,32 @@
 "use client";
 
 import * as React from "react";
-import { DownloadIcon, MinusIcon, PlusIcon, UploadIcon } from "@/components/icons";
+import {
+  AdjustIcon,
+  BellIcon,
+  CalendarIcon,
+  DownloadIcon,
+  Icon,
+  MinusIcon,
+  PaletteIcon,
+  PlusIcon,
+  TargetIcon,
+  UploadIcon,
+} from "@/components/icons";
 import { useSettings } from "@/stores/settings";
 import { useHydrated } from "@/lib/hooks";
 import { downloadBackup, restoreBackup } from "@/lib/backup";
-import { cn, formatClock } from "@/lib/utils";
+import { cn, DEFAULT_PLATES, formatClock } from "@/lib/utils";
+import { ACCENTS, SCHEMES, TRAINING_STYLES } from "@/lib/training";
 import { Card, CardLabel } from "@/components/ui/Card";
+import { Segmented } from "@/components/ui/Segmented";
+import { Toggle } from "@/components/ui/Toggle";
+
+const WARMUP_RAMPS: { label: string; ramp: number[] }[] = [
+  { label: "Light", ramp: [50, 75] },
+  { label: "Standard", ramp: [40, 60, 80] },
+  { label: "Heavy", ramp: [30, 50, 70, 85] },
+];
 
 export default function SettingsPage() {
   const s = useSettings();
@@ -27,6 +47,13 @@ export default function SettingsPage() {
     }
   }
 
+  const plateChoices = React.useMemo(() => {
+    const set = new Set<number>([...DEFAULT_PLATES[s.unit], ...s.availablePlates]);
+    return [...set].sort((a, b) => b - a);
+  }, [s.unit, s.availablePlates]);
+
+  const rampKey = JSON.stringify(s.warmupRamp);
+
   return (
     <div className="px-4">
       <header className="px-1 pb-4 pt-7">
@@ -41,56 +68,246 @@ export default function SettingsPage() {
           {/* Units */}
           <Card className="p-4">
             <CardLabel className="mb-3">Units</CardLabel>
-            <div className="flex gap-2">
-              {(["kg", "lb"] as const).map((u) => (
+            <Segmented
+              options={[
+                { value: "kg", label: "Kilograms (kg)" },
+                { value: "lb", label: "Pounds (lb)" },
+              ]}
+              value={s.unit}
+              onChange={s.setUnit}
+            />
+          </Card>
+
+          {/* Training preferences */}
+          <Card className="p-4">
+            <SectionTitle icon={<AdjustIcon className="h-4 w-4" />} title="Training" />
+            <p className="mb-3 text-xs text-muted">
+              A starting point for how every exercise is programmed. Pick a style, then tweak.
+            </p>
+            <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {TRAINING_STYLES.map((style) => (
                 <button
-                  key={u}
-                  onClick={() => s.setUnit(u)}
+                  key={style.id}
+                  onClick={() => s.applyTrainingStyle(style.id)}
                   className={cn(
-                    "flex-1 rounded-2xl border py-2.5 font-medium transition-colors",
-                    s.unit === u
-                      ? "border-transparent bg-arena text-white"
-                      : "border-line bg-ink/40 text-muted",
+                    "rounded-2xl border p-3 text-left transition-colors",
+                    s.trainingStyle === style.id
+                      ? "border-crimson/50 bg-crimson/10"
+                      : "border-line/60 bg-ink/30 active:bg-raised",
                   )}
                 >
-                  {u === "kg" ? "Kilograms (kg)" : "Pounds (lb)"}
+                  <p className="text-sm font-semibold text-text">{style.label}</p>
+                  <p className="mt-0.5 text-[0.65rem] leading-tight text-faint">{style.blurb}</p>
                 </button>
               ))}
             </div>
+
+            <div className="divide-y divide-line/50">
+              <RepRangeField
+                min={s.defaultRepRangeMin}
+                max={s.defaultRepRangeMax}
+                onChange={s.setRepRange}
+              />
+              <Stepper
+                label="Target sets"
+                hint="working sets per exercise"
+                value={`${s.defaultTargetSets}`}
+                onDec={() => s.setTargetSets(Math.max(1, s.defaultTargetSets - 1))}
+                onInc={() => s.setTargetSets(Math.min(10, s.defaultTargetSets + 1))}
+              />
+              <Stepper
+                label="Default rest"
+                hint="between sets"
+                value={formatClock(s.defaultRestSeconds)}
+                onDec={() => s.setDefaultRest(Math.max(15, s.defaultRestSeconds - 15))}
+                onInc={() => s.setDefaultRest(Math.min(600, s.defaultRestSeconds + 15))}
+              />
+              <Stepper
+                label="Weight increment"
+                hint="default progression jump"
+                value={`${s.weightIncrement} ${s.unit}`}
+                onDec={() =>
+                  s.setWeightIncrement(Math.max(0.25, round2(s.weightIncrement - 0.25)))
+                }
+                onInc={() => s.setWeightIncrement(round2(s.weightIncrement + 0.25))}
+              />
+            </div>
+
+            <CardLabel className="mb-2 mt-4">Progression scheme</CardLabel>
+            <Segmented
+              options={SCHEMES.map((sc) => ({ value: sc.id, label: sc.label }))}
+              value={s.progressionScheme}
+              onChange={s.setProgressionScheme}
+            />
+            <p className="mt-2 text-xs text-faint">
+              {SCHEMES.find((x) => x.id === s.progressionScheme)?.blurb}
+            </p>
           </Card>
 
-          {/* Targets */}
-          <Card className="divide-y divide-line/50 p-1">
-            <Stepper
-              label="Weekly goal"
-              hint="workouts per week"
-              value={`${s.weeklyGoal}`}
-              onDec={() => s.setWeeklyGoal(Math.max(1, s.weeklyGoal - 1))}
-              onInc={() => s.setWeeklyGoal(Math.min(14, s.weeklyGoal + 1))}
+          {/* Equipment & plates */}
+          <Card className="p-4">
+            <SectionTitle icon={<Icon name="plate" className="h-4 w-4" />} title="Equipment" />
+            <p className="mb-3 text-xs text-muted">
+              What&apos;s in your gym, so suggested weights round to numbers you can actually load.
+            </p>
+            <div className="divide-y divide-line/50">
+              <Stepper
+                label="Barbell"
+                hint="standard bar"
+                value={`${s.barWeight} ${s.unit}`}
+                onDec={() => s.setBarWeight(round2(s.barWeight - 2.5))}
+                onInc={() => s.setBarWeight(round2(s.barWeight + 2.5))}
+              />
+              <Stepper
+                label="EZ / curl bar"
+                hint="for the plate calculator"
+                value={`${s.ezBarWeight} ${s.unit}`}
+                onDec={() => s.setEzBarWeight(round2(s.ezBarWeight - 1.25))}
+                onInc={() => s.setEzBarWeight(round2(s.ezBarWeight + 1.25))}
+              />
+              <Stepper
+                label="Dumbbell / machine step"
+                hint="smallest increment"
+                value={`${s.dumbbellIncrement} ${s.unit}`}
+                onDec={() => s.setDumbbellIncrement(round2(s.dumbbellIncrement - 0.5))}
+                onInc={() => s.setDumbbellIncrement(round2(s.dumbbellIncrement + 0.5))}
+              />
+            </div>
+
+            <CardLabel className="mb-2 mt-4">Plates on hand (per side)</CardLabel>
+            <div className="flex flex-wrap gap-2">
+              {plateChoices.map((p) => {
+                const on = s.availablePlates.includes(p);
+                return (
+                  <button
+                    key={p}
+                    onClick={() => s.togglePlate(p)}
+                    aria-pressed={on}
+                    className={cn(
+                      "rounded-full border px-3 py-1.5 text-sm font-medium tabular-nums transition-colors",
+                      on
+                        ? "border-transparent bg-arena text-white"
+                        : "border-line bg-ink/40 text-faint",
+                    )}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={s.resetEquipmentForUnit}
+              className="mt-3 text-xs font-medium text-crimson active:opacity-70"
+            >
+              Reset to {s.unit} defaults
+            </button>
+          </Card>
+
+          {/* Warmups */}
+          <Card className="p-4">
+            <SectionTitle icon={<Icon name="flame" className="h-4 w-4" />} title="Warmups" />
+            <p className="mb-3 text-xs text-muted">
+              The ramp used by the warmup generator — percentages of your working weight.
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {WARMUP_RAMPS.map((r) => {
+                const active = JSON.stringify(r.ramp) === rampKey;
+                return (
+                  <button
+                    key={r.label}
+                    onClick={() => s.setWarmupRamp(r.ramp)}
+                    className={cn(
+                      "rounded-2xl border p-3 text-center transition-colors",
+                      active
+                        ? "border-crimson/50 bg-crimson/10"
+                        : "border-line/60 bg-ink/30 active:bg-raised",
+                    )}
+                  >
+                    <p className="text-sm font-semibold text-text">{r.label}</p>
+                    <p className="mt-0.5 text-[0.65rem] tabular-nums text-faint">
+                      {r.ramp.join(" · ")}%
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+
+          {/* Appearance */}
+          <Card className="p-4">
+            <SectionTitle icon={<PaletteIcon className="h-4 w-4" />} title="Appearance" />
+
+            <CardLabel className="mb-2 mt-1">Theme</CardLabel>
+            <Segmented
+              options={[
+                { value: "dark", label: "Dark" },
+                { value: "light", label: "Light" },
+                { value: "system", label: "System" },
+              ]}
+              value={s.theme}
+              onChange={s.setTheme}
             />
-            <Stepper
-              label="Default rest"
-              hint="between sets"
-              value={formatClock(s.defaultRestSeconds)}
-              onDec={() => s.setDefaultRest(Math.max(30, s.defaultRestSeconds - 15))}
-              onInc={() => s.setDefaultRest(Math.min(600, s.defaultRestSeconds + 15))}
-            />
-            <Stepper
-              label="Bar weight"
-              hint="for the plate calculator"
-              value={`${s.barWeightKg} kg`}
-              onDec={() => s.setBarWeight(Math.max(0, s.barWeightKg - 2.5))}
-              onInc={() => s.setBarWeight(s.barWeightKg + 2.5)}
-            />
-            <Stepper
-              label="Progression step"
-              hint="default weight jump"
-              value={`${s.weightIncrement} ${s.unit}`}
-              onDec={() =>
-                s.setWeightIncrement(Math.max(0.25, Math.round((s.weightIncrement - 0.25) * 100) / 100))
-              }
-              onInc={() => s.setWeightIncrement(Math.round((s.weightIncrement + 0.25) * 100) / 100)}
-            />
+
+            <CardLabel className="mb-2 mt-4">Accent</CardLabel>
+            <div className="flex flex-wrap gap-3">
+              {ACCENTS.map((a) => (
+                <button
+                  key={a.key}
+                  onClick={() => s.setAccent(a.key)}
+                  aria-label={a.label}
+                  aria-pressed={s.accentColor === a.key}
+                  className={cn(
+                    "h-9 w-9 rounded-full ring-2 ring-offset-2 ring-offset-surface transition-all",
+                    s.accentColor === a.key ? "ring-text" : "ring-transparent",
+                  )}
+                  style={{ backgroundImage: `linear-gradient(135deg, ${a.from}, ${a.to})` }}
+                />
+              ))}
+            </div>
+
+            <div className="mt-4 divide-y divide-line/50">
+              <RowToggle
+                icon={<CalendarIcon className="h-4 w-4 text-muted" />}
+                label="Week starts on"
+                hint="affects streaks & the weekly view"
+                control={
+                  <Segmented
+                    className="w-36"
+                    size="sm"
+                    options={[
+                      { value: "1", label: "Mon" },
+                      { value: "0", label: "Sun" },
+                    ]}
+                    value={`${s.firstDayOfWeek}`}
+                    onChange={(v) => s.setFirstDayOfWeek(v === "0" ? 0 : 1)}
+                  />
+                }
+              />
+              <RowToggle
+                icon={<Icon name="bolt" className="h-4 w-4 text-muted" />}
+                label="Animations"
+                hint="motion & celebrations"
+                control={
+                  <Toggle
+                    checked={s.animationsEnabled}
+                    onChange={s.toggleAnimations}
+                    label="Animations"
+                  />
+                }
+              />
+              <RowToggle
+                icon={<BellIcon className="h-4 w-4 text-muted" />}
+                label="Training reminders"
+                hint="local notifications · no server"
+                control={
+                  <Toggle
+                    checked={s.remindersEnabled}
+                    onChange={() => requestReminders(s.remindersEnabled, s.toggleReminders)}
+                    label="Training reminders"
+                  />
+                }
+              />
+            </div>
           </Card>
 
           {/* Timer */}
@@ -99,28 +316,27 @@ export default function SettingsPage() {
               <p className="font-medium text-text">Rest timer sound</p>
               <p className="text-xs text-faint">Play a tone when a rest ends</p>
             </div>
-            <button
-              role="switch"
-              aria-checked={!s.timerMuted}
-              aria-label="Rest timer sound"
-              onClick={s.toggleTimerMuted}
-              className={cn(
-                "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-                s.timerMuted ? "bg-line" : "bg-arena",
-              )}
-            >
-              <span
-                className={cn(
-                  "absolute top-1 h-5 w-5 rounded-full bg-white transition-all",
-                  s.timerMuted ? "left-1" : "left-6",
-                )}
-              />
-            </button>
+            <Toggle
+              checked={!s.timerMuted}
+              onChange={s.toggleTimerMuted}
+              label="Rest timer sound"
+            />
+          </Card>
+
+          {/* Weekly goal */}
+          <Card className="p-1">
+            <Stepper
+              label="Weekly goal"
+              hint="workouts per week"
+              value={`${s.weeklyGoal}`}
+              onDec={() => s.setWeeklyGoal(Math.max(1, s.weeklyGoal - 1))}
+              onInc={() => s.setWeeklyGoal(Math.min(14, s.weeklyGoal + 1))}
+            />
           </Card>
 
           {/* Data */}
           <Card className="p-4">
-            <CardLabel className="mb-1">Backup &amp; restore</CardLabel>
+            <SectionTitle icon={<TargetIcon className="h-4 w-4" />} title="Backup & restore" />
             <p className="mb-3 text-xs text-muted">
               No cloud copy exists. Export regularly — it&apos;s the only protection against a
               cleared browser or a new phone.
@@ -175,6 +391,111 @@ export default function SettingsPage() {
   );
 }
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+async function requestReminders(enabled: boolean, toggle: () => void) {
+  // Turning on asks for notification permission; everything stays local (no push).
+  if (!enabled && typeof Notification !== "undefined" && Notification.permission === "default") {
+    try {
+      await Notification.requestPermission();
+    } catch {
+      /* ignore */
+    }
+  }
+  toggle();
+}
+
+function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string }) {
+  return (
+    <div className="mb-1 flex items-center gap-2">
+      <span className="text-crimson">{icon}</span>
+      <CardLabel>{title}</CardLabel>
+    </div>
+  );
+}
+
+function RowToggle({
+  icon,
+  label,
+  hint,
+  control,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  hint: string;
+  control: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3 py-3">
+      {icon}
+      <div className="flex-1">
+        <p className="font-medium text-text">{label}</p>
+        <p className="text-xs text-faint">{hint}</p>
+      </div>
+      {control}
+    </div>
+  );
+}
+
+/** The global default rep range (e.g. 6–8) the progression engine works toward. */
+function RepRangeField({
+  min,
+  max,
+  onChange,
+}: {
+  min: number;
+  max: number;
+  onChange: (min: number, max: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-1 py-3">
+      <div className="flex-1">
+        <p className="font-medium text-text">Rep range</p>
+        <p className="text-xs text-faint">target reps per set — e.g. 6–8</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <RepInput value={min} placeholder="6" label="Minimum reps" onCommit={(v) => onChange(v, max)} />
+        <span className="text-faint">–</span>
+        <RepInput value={max} placeholder="8" label="Maximum reps" onCommit={(v) => onChange(min, v)} />
+      </div>
+    </div>
+  );
+}
+
+function RepInput({
+  value,
+  placeholder,
+  label,
+  onCommit,
+}: {
+  value: number;
+  placeholder: string;
+  label: string;
+  onCommit: (value: number) => void;
+}) {
+  const [draft, setDraft] = React.useState<string | null>(null);
+  return (
+    <input
+      inputMode="numeric"
+      aria-label={label}
+      placeholder={placeholder}
+      value={draft ?? String(value)}
+      onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ""))}
+      onFocus={(e) => {
+        setDraft(String(value));
+        e.currentTarget.select();
+      }}
+      onBlur={(e) => {
+        const n = parseInt(e.target.value, 10);
+        onCommit(Number.isFinite(n) && n > 0 ? n : value);
+        setDraft(null);
+      }}
+      onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+      className="w-12 rounded-xl border border-line bg-ink/40 py-2 text-center font-display text-lg font-semibold tabular-nums text-text outline-none focus:border-crimson/50"
+    />
+  );
+}
+
 function Stepper({
   label,
   hint,
@@ -189,7 +510,7 @@ function Stepper({
   onInc: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 px-3 py-3">
+    <div className="flex items-center gap-3 px-1 py-3">
       <div className="flex-1">
         <p className="font-medium text-text">{label}</p>
         <p className="text-xs text-faint">{hint}</p>
@@ -202,7 +523,7 @@ function Stepper({
         >
           <MinusIcon className="h-4 w-4" />
         </button>
-        <span className="w-16 text-center font-display text-base font-semibold tabular-nums">
+        <span className="w-20 text-center font-display text-base font-semibold tabular-nums">
           {value}
         </span>
         <button

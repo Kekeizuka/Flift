@@ -1,9 +1,14 @@
 import { z } from "zod";
 
 /* Zod schemas — the validation boundary that matters is IMPORT. In-app writes
-   are already typed; restored JSON is untrusted and parsed here first. */
+   are already typed; restored JSON is untrusted and parsed here first. New
+   fields must be listed or `.parse()` will silently strip them on restore. */
 
 const setType = z.enum(["working", "warmup", "drop"]);
+const setTag = z.enum(["failure", "amrap"]);
+const progressionScheme = z.enum(["double", "linear", "manual"]);
+const loadType = z.enum(["external", "bodyweight", "assisted"]);
+const goalType = z.enum(["weight", "reps", "e1rm"]);
 
 export const exerciseSchema = z.object({
   id: z.string(),
@@ -11,6 +16,30 @@ export const exerciseSchema = z.object({
   muscleGroups: z.array(z.string()),
   equipment: z.string(),
   isCustom: z.boolean(),
+  // update3 provenance + enrichment
+  sourceId: z.string().optional(),
+  primaryMuscles: z.array(z.string()).optional(),
+  secondaryMuscles: z.array(z.string()).optional(),
+  instructions: z.array(z.string()).optional(),
+  images: z.array(z.string()).optional(),
+  level: z.string().optional(),
+  mechanic: z.string().optional(),
+  force: z.string().optional(),
+  category: z.string().optional(),
+  // programming prescription (update2 + update4)
+  defaultTargetSets: z.number().optional(),
+  defaultRepRangeMin: z.number().optional(),
+  defaultRepRangeMax: z.number().optional(),
+  defaultWeightIncrement: z.number().optional(),
+  defaultRestSeconds: z.number().optional(),
+  progressionScheme: progressionScheme.optional(),
+  // update4 extras
+  loadType: loadType.optional(),
+  settingsMemory: z.string().optional(),
+  goal: z.object({ type: goalType, value: z.number() }).optional(),
+  // apply-suggestion pre-fill
+  plannedWeightG: z.number().optional(),
+  plannedReps: z.number().optional(),
 });
 
 export const workoutSchema = z.object({
@@ -38,6 +67,7 @@ export const setSchema = z.object({
   weightG: z.number(),
   reps: z.number(),
   rpe: z.number().optional(),
+  tag: setTag.optional(),
   type: setType,
   completedAt: z.number(),
   isPR: z.boolean(),
@@ -47,6 +77,7 @@ export const routineSchema = z.object({
   id: z.string(),
   name: z.string(),
   createdAt: z.number(),
+  lastPerformedAt: z.number().optional(),
 });
 
 export const routineExerciseSchema = z.object({
@@ -56,6 +87,11 @@ export const routineExerciseSchema = z.object({
   order: z.number(),
   targetSets: z.number().optional(),
   targetReps: z.number().optional(),
+  repRangeMin: z.number().optional(),
+  repRangeMax: z.number().optional(),
+  weightIncrement: z.number().optional(),
+  restSeconds: z.number().optional(),
+  progressionScheme: progressionScheme.optional(),
 });
 
 export const bodyMeasurementSchema = z.object({

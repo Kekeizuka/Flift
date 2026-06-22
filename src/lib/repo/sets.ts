@@ -1,5 +1,5 @@
 import { db, newId } from "@/lib/db";
-import type { SetRecord, SetType, WorkoutExercise } from "@/lib/types";
+import type { SetRecord, SetTag, SetType, WorkoutExercise } from "@/lib/types";
 import { estimate1RM } from "@/lib/utils";
 
 /* ----------------------------- Exercises in a session ----------------------------- */
@@ -69,6 +69,7 @@ export interface LogSetInput {
   reps: number;
   type?: SetType;
   rpe?: number;
+  tag?: SetTag;
 }
 
 export async function logSet(input: LogSetInput): Promise<SetRecord> {
@@ -87,6 +88,7 @@ export async function logSet(input: LogSetInput): Promise<SetRecord> {
     weightG: input.weightG,
     reps: input.reps,
     rpe: input.rpe,
+    tag: input.tag,
     type: input.type ?? "working",
     completedAt: Date.now(),
     isPR,
@@ -97,7 +99,7 @@ export async function logSet(input: LogSetInput): Promise<SetRecord> {
 
 export async function updateSet(
   id: string,
-  patch: Partial<Pick<SetRecord, "weightG" | "reps" | "rpe" | "type">>,
+  patch: Partial<Pick<SetRecord, "weightG" | "reps" | "rpe" | "type" | "tag">>,
 ): Promise<void> {
   await db.sets.update(id, patch);
 }

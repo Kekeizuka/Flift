@@ -40,6 +40,20 @@
     color-scheme: dark;
   }
 
+  /* "Arena Day" — light palette. Accent (crimson/magenta) is set at runtime
+     by the theme bootstrap, so it stays consistent across themes. */
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --color-ink: #f3f3f7;
+    --color-surface: #ffffff;
+    --color-raised: #ebebf1;
+    --color-line: #d9d9e2;
+    --color-line-soft: #e6e6ee;
+    --color-text: #16161d;
+    --color-muted: #5a5a66;
+    --color-faint: #9a9aa8;
+  }
+
   html {
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
@@ -63,6 +77,21 @@
       );
     background-attachment: fixed;
     background-repeat: no-repeat;
+  }
+
+  /* Softer ambient glow on the light theme so it doesn't wash out. */
+  :root[data-theme="light"] body {
+    background-image:
+      radial-gradient(
+        120% 60% at 50% -10%,
+        color-mix(in oklab, var(--color-crimson) 12%, transparent),
+        transparent 60%
+      ),
+      radial-gradient(
+        90% 50% at 100% 0%,
+        color-mix(in oklab, var(--color-magenta) 9%, transparent),
+        transparent 55%
+      );
   }
 
   /* Tabular figures everywhere numbers carry meaning. */
@@ -131,4 +160,14 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Global animation kill-switch (update4 §11). Mirrors reduced-motion; Motion's
+   JS animations are handled by <MotionConfig reducedMotion> in the app shell. */
+:root[data-animations="off"] *,
+:root[data-animations="off"] *::before,
+:root[data-animations="off"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
 }

@@ -60,13 +60,16 @@ export interface DashboardStats {
   today: number;
 }
 
-export async function getDashboardStats(weeklyGoal: number): Promise<DashboardStats> {
+export async function getDashboardStats(
+  weeklyGoal: number,
+  weekStartsOn: 0 | 1 = 1,
+): Promise<DashboardStats> {
   const [sets, totalWorkouts] = await Promise.all([
     db.sets.toArray(),
     db.workouts.filter((w) => w.endedAt !== undefined).count(),
   ]);
 
-  const thisWeekStart = startOfWeek(Date.now()).getTime();
+  const thisWeekStart = startOfWeek(Date.now(), weekStartsOn).getTime();
 
   // Volume + active days
   const activeDays = new Set<string>();
@@ -79,7 +82,7 @@ export async function getDashboardStats(weeklyGoal: number): Promise<DashboardSt
   // 8-week volume trend
   const volumeTrend: { weekStart: number; volumeG: number }[] = [];
   for (let i = 7; i >= 0; i--) {
-    const ws = startOfWeek(addDays(thisWeekStart, -i * 7)).getTime();
+    const ws = startOfWeek(addDays(thisWeekStart, -i * 7), weekStartsOn).getTime();
     const we = addDays(ws, 7).getTime();
     const volumeG = sets
       .filter((s) => s.completedAt >= ws && s.completedAt < we)

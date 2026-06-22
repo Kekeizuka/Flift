@@ -70,3 +70,43 @@ export const TrendingUpIcon = (p: IconProps) => (
     <path d="M16 7h5v5" />
   </IconBase>
 );
+
+export const TargetIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <circle cx="12" cy="12" r="8" />
+    <circle cx="12" cy="12" r="4" />
+    <circle cx="12" cy="12" r="0.6" fill="currentColor" stroke="none" />
+  </IconBase>
+);
+
+export const AdjustIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <path d="M5 6h14M5 12h14M5 18h14" />
+    <circle cx="9" cy="6" r="2" fill="var(--color-surface)" />
+    <circle cx="15" cy="12" r="2" fill="var(--color-surface)" />
+    <circle cx="8" cy="18" r="2" fill="var(--color-surface)" />
+  </IconBase>
+);
+
+export const PaletteIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <path d="M12 3a9 9 0 1 0 0 18c1.3 0 2-1 2-2s-.5-1.4-.5-2 .7-1 1.5-1H17a4 4 0 0 0 4-4c0-3.9-4-6-9-6z" />
+    <circle cx="7.5" cy="11" r="1" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="8" r="1" fill="currentColor" stroke="none" />
+    <circle cx="16" cy="10" r="1" fill="currentColor" stroke="none" />
+  </IconBase>
+);
+
+export const BellIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z" />
+    <path d="M10 19a2 2 0 0 0 4 0" />
+  </IconBase>
+);
+
+export const CalendarIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <rect x="4" y="5" width="16" height="16" rx="2.5" />
+    <path d="M4 9h16M8 3v4M16 3v4" />
+  </IconBase>
+);
