@@ -219,8 +219,9 @@ export function ExerciseLogCard({
         </div>
 
         <div className="flex items-end gap-2">
-          {/* Weight gets more width than reps — it carries longer values (127.5). */}
-          <div className="flex-[1.35]">
+          {/* Weight gets more width than reps — it carries longer values (127.5).
+              min-w-0 lets both shrink cleanly so neither overflows the card. */}
+          <div className="min-w-0 flex-[1.35]">
             <NumberStepper
               label="Weight"
               value={weight}
@@ -229,18 +230,9 @@ export function ExerciseLogCard({
               suffix={unit}
             />
           </div>
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <NumberStepper label="Reps" value={reps} onChange={setReps} step={1} />
           </div>
-          <motion.button
-            type="button"
-            onClick={handleLog}
-            aria-label="Log set"
-            whileTap={{ scale: 0.9 }}
-            className="bg-arena glow-crimson mb-px flex h-[3.25rem] w-12 shrink-0 items-center justify-center rounded-2xl text-white"
-          >
-            <AnimatedCheck key={exercise.sets.length} className="h-6 w-6" strokeWidth={2.5} />
-          </motion.button>
         </div>
 
         {/* Optional effort details — kept out of the way of fast logging. */}
@@ -279,6 +271,20 @@ export function ExerciseLogCard({
             </div>
           </div>
         )}
+
+        {/* Confirm gets its own full-width row: a large, always-visible tap
+            target that can't be clipped on a narrow screen (logging speed is
+            the #1 priority). */}
+        <motion.button
+          type="button"
+          onClick={handleLog}
+          aria-label="Log set"
+          whileTap={{ scale: 0.98 }}
+          className="bg-arena glow-crimson mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold tracking-wide text-white"
+        >
+          <AnimatedCheck key={exercise.sets.length} className="h-5 w-5" strokeWidth={2.5} />
+          Log set
+        </motion.button>
       </div>
 
       {isBarbell && (
