@@ -78,8 +78,10 @@ export interface Exercise {
   isCustom: boolean;
 
   /* --- update3: Free Exercise DB provenance + enrichment --- */
-  /** Free Exercise DB id (e.g. "Alternate_Incline_Dumbbell_Curl") — dedupe + idempotent re-seed. */
+  /** Source id, prefixed by dataset (e.g. "fedb:Alternate_Incline_Dumbbell_Curl") — dedupe + idempotent re-seed. */
   sourceId?: string;
+  /** Which dataset this came from (update5 §3): "fedb", "rl" (curated), etc. */
+  source?: string;
   /** Original fine-grained muscle names, for the detail screen. */
   primaryMuscles?: string[];
   secondaryMuscles?: string[];

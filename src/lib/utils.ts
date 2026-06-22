@@ -116,7 +116,12 @@ export interface RepRange {
   max: number;
 }
 
-export type ProgressionAction = "increase_weight" | "add_reps" | "hold" | "deload";
+export type ProgressionAction =
+  | "increase_weight"
+  | "decrease_weight"
+  | "add_reps"
+  | "hold"
+  | "deload";
 
 export interface ProgressionSuggestion {
   action: ProgressionAction;
@@ -211,7 +216,9 @@ export function getProgressionSuggestion(input: ProgressionInput): ProgressionSu
     };
   }
 
-  // 3) Below the range → rebuild; deload if it keeps happening.
+  // 3) Below the range → drop the weight so next session lands back inside the
+  //    range (update5 §2 — suggestions are bidirectional). A persistent stall
+  //    escalates to a larger deload cut.
   if (stalls + 1 >= STALL_SESSIONS_FOR_DELOAD) {
     const suggestedWeight =
       loadType === "assisted"
@@ -227,11 +234,15 @@ export function getProgressionSuggestion(input: ProgressionInput): ProgressionSu
           : `Stalled below ${repRange.min} for ${stalls + 1} sessions — deload to ${trimNum(suggestedWeight)}${unit} and build back up.`,
     };
   }
+  const easier = roundToIncrement(Math.max(0, W - dir * weightIncrement), weightIncrement);
   return {
-    action: "hold",
-    suggestedWeight: W,
+    action: "decrease_weight",
+    suggestedWeight: easier,
     suggestedReps: repRange.min,
-    message: `Stay at ${trimNum(W)}${unit} and rebuild to ${repRange.min}+ across all sets.`,
+    message:
+      loadType === "assisted"
+        ? `Couldn't hit ${repRange.min} — add assistance to ${trimNum(easier)}${unit} to get back in range.`
+        : `Couldn't hit ${repRange.min} across all sets — drop to ${trimNum(easier)}${unit} to land back in range.`,
   };
 }
 

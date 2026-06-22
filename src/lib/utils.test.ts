@@ -143,13 +143,15 @@ describe("double-progression suggestion", () => {
     expect(s.action).toBe("add_reps");
   });
 
-  it("below the range → hold, then deload after repeated stalls", () => {
+  it("below the range → decrease weight, then deload after repeated stalls", () => {
     const sets = [
       { weight: 15, reps: 5 },
       { weight: 15, reps: 5 },
       { weight: 15, reps: 4 },
     ];
-    expect(getProgressionSuggestion({ ...base, workingSets: sets }).action).toBe("hold");
+    const first = getProgressionSuggestion({ ...base, workingSets: sets });
+    expect(first.action).toBe("decrease_weight");
+    expect(first.suggestedWeight).toBe(12.5); // 15 − 2.5, back toward the range
     expect(
       getProgressionSuggestion({ ...base, workingSets: sets, consecutiveStalls: 1 }).action,
     ).toBe("deload");

@@ -218,8 +218,9 @@ export function ExerciseLogCard({
           </div>
         </div>
 
-        <div className="flex items-end gap-2.5">
-          <div className="flex-1">
+        <div className="flex items-end gap-2">
+          {/* Weight gets more width than reps — it carries longer values (127.5). */}
+          <div className="flex-[1.35]">
             <NumberStepper
               label="Weight"
               value={weight}
@@ -236,7 +237,7 @@ export function ExerciseLogCard({
             onClick={handleLog}
             aria-label="Log set"
             whileTap={{ scale: 0.9 }}
-            className="bg-arena glow-crimson mb-px flex h-[3.25rem] w-14 items-center justify-center rounded-2xl text-white"
+            className="bg-arena glow-crimson mb-px flex h-[3.25rem] w-12 shrink-0 items-center justify-center rounded-2xl text-white"
           >
             <AnimatedCheck key={exercise.sets.length} className="h-6 w-6" strokeWidth={2.5} />
           </motion.button>

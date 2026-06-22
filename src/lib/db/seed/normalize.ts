@@ -100,14 +100,15 @@ export function unmappedMuscles(raw: RawExercise): string[] {
 }
 
 /** Map a raw dataset entry onto a seeded (non-custom) Exercise record. */
-export function toExercise(raw: RawExercise, id: string): Exercise {
+export function toExercise(raw: RawExercise, id: string, source?: string): Exercise {
   return {
     id,
     name: raw.name,
     equipment: normalizeEquipment(raw.equipment),
     muscleGroups: normalizeMuscleGroups(raw.primaryMuscles, raw.secondaryMuscles),
     isCustom: false,
-    sourceId: raw.id,
+    sourceId: source ? `${source}:${raw.id}` : raw.id,
+    source,
     primaryMuscles: raw.primaryMuscles ?? [],
     secondaryMuscles: raw.secondaryMuscles ?? [],
     instructions: raw.instructions ?? [],
@@ -117,6 +118,20 @@ export function toExercise(raw: RawExercise, id: string): Exercise {
     force: raw.force ?? undefined,
     category: raw.category ?? undefined,
   };
+}
+
+/**
+ * Merge dedupe key (update5 §3): normalized name + equipment + primary coarse
+ * group. Collapses true duplicates across sources while keeping *variations*
+ * (different equipment/muscle) distinct — so "Dumbbell Fly" and "Cable Fly" both
+ * survive. `richness` lets the caller keep the fuller record on a tie.
+ */
+export function dedupeKey(ex: Pick<Exercise, "name" | "equipment" | "muscleGroups">): string {
+  return `${ex.name.trim().toLowerCase()}|${ex.equipment}|${ex.muscleGroups[0] ?? ""}`;
+}
+
+export function richness(ex: Exercise): number {
+  return (ex.instructions?.length ?? 0) + (ex.images?.length ?? 0) + ex.muscleGroups.length;
 }
 
 /** Normalize a free-text/legacy muscle list onto coarse groups (for migration). */

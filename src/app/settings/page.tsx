@@ -103,19 +103,10 @@ export default function SettingsPage() {
             </div>
 
             <div className="divide-y divide-line/50">
-              <Stepper
-                label="Rep range — min"
-                hint="bottom of the range"
-                value={`${s.defaultRepRangeMin}`}
-                onDec={() => s.setRepRange(s.defaultRepRangeMin - 1, s.defaultRepRangeMax)}
-                onInc={() => s.setRepRange(s.defaultRepRangeMin + 1, s.defaultRepRangeMax)}
-              />
-              <Stepper
-                label="Rep range — max"
-                hint="top of the range"
-                value={`${s.defaultRepRangeMax}`}
-                onDec={() => s.setRepRange(s.defaultRepRangeMin, s.defaultRepRangeMax - 1)}
-                onInc={() => s.setRepRange(s.defaultRepRangeMin, s.defaultRepRangeMax + 1)}
+              <RepRangeField
+                min={s.defaultRepRangeMin}
+                max={s.defaultRepRangeMax}
+                onChange={s.setRepRange}
               />
               <Stepper
                 label="Target sets"
@@ -443,6 +434,65 @@ function RowToggle({
       </div>
       {control}
     </div>
+  );
+}
+
+/** The global default rep range (e.g. 6–8) the progression engine works toward. */
+function RepRangeField({
+  min,
+  max,
+  onChange,
+}: {
+  min: number;
+  max: number;
+  onChange: (min: number, max: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-1 py-3">
+      <div className="flex-1">
+        <p className="font-medium text-text">Rep range</p>
+        <p className="text-xs text-faint">target reps per set — e.g. 6–8</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <RepInput value={min} placeholder="6" label="Minimum reps" onCommit={(v) => onChange(v, max)} />
+        <span className="text-faint">–</span>
+        <RepInput value={max} placeholder="8" label="Maximum reps" onCommit={(v) => onChange(min, v)} />
+      </div>
+    </div>
+  );
+}
+
+function RepInput({
+  value,
+  placeholder,
+  label,
+  onCommit,
+}: {
+  value: number;
+  placeholder: string;
+  label: string;
+  onCommit: (value: number) => void;
+}) {
+  const [draft, setDraft] = React.useState<string | null>(null);
+  return (
+    <input
+      inputMode="numeric"
+      aria-label={label}
+      placeholder={placeholder}
+      value={draft ?? String(value)}
+      onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ""))}
+      onFocus={(e) => {
+        setDraft(String(value));
+        e.currentTarget.select();
+      }}
+      onBlur={(e) => {
+        const n = parseInt(e.target.value, 10);
+        onCommit(Number.isFinite(n) && n > 0 ? n : value);
+        setDraft(null);
+      }}
+      onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+      className="w-12 rounded-xl border border-line bg-ink/40 py-2 text-center font-display text-lg font-semibold tabular-nums text-text outline-none focus:border-crimson/50"
+    />
   );
 }
 

@@ -44,6 +44,7 @@ const METRICS: { key: Metric; label: string }[] = [
 
 const ACTION_STYLE: Record<ProgressionAction, { label: string; cls: string }> = {
   increase_weight: { label: "Increase weight", cls: "bg-lime/15 text-lime" },
+  decrease_weight: { label: "Decrease weight", cls: "bg-amber/15 text-amber" },
   add_reps: { label: "Add reps", cls: "bg-crimson/15 text-crimson" },
   hold: { label: "Hold", cls: "bg-amber/15 text-amber" },
   deload: { label: "Deload", cls: "bg-cyan/15 text-cyan" },

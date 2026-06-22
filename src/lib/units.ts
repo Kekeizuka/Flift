@@ -22,18 +22,21 @@ export function fromGrams(grams: number, unit: WeightUnit): number {
   return grams / gramsPerUnit(unit);
 }
 
-/** Grams → display number rounded to a sensible precision for the unit. */
+/**
+ * Grams → display number, to 2 decimal places. Two dp (not one) so micro-plate
+ * weights like 1.25 kg survive instead of rounding to 1.3 (update5 §1).
+ */
 export function displayWeight(grams: number, unit: WeightUnit): number {
-  const value = fromGrams(grams, unit);
-  // kg micro-plates go to 1.25; lb to 2.5. One decimal is plenty either way.
-  return Math.round(value * 10) / 10;
+  return Math.round(fromGrams(grams, unit) * 100) / 100;
 }
 
-/** Grams → "60 kg" style string with trailing zeros trimmed. */
+/**
+ * Grams → "12.5 kg" style string. The single shared weight formatter: shows
+ * decimals when present and strips needless trailing zeros (12, not 12.0; 12.5,
+ * not 12.50), to 2 dp. Used on every surface a weight appears.
+ */
 export function formatWeight(grams: number, unit: WeightUnit): string {
-  const value = displayWeight(grams, unit);
-  const text = Number.isInteger(value) ? value.toString() : value.toFixed(1);
-  return `${text} ${unit}`;
+  return `${displayWeight(grams, unit)} ${unit}`;
 }
 
 /** Compact volume label, e.g. 12,540 kg → "12.5k kg". */

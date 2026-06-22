@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  dedupeKey,
   normalizeEquipment,
   normalizeMuscleGroup,
   normalizeMuscleGroups,
@@ -88,5 +89,30 @@ describe("toExercise mapping", () => {
   it("flags muscles that fell through the map", () => {
     expect(unmappedMuscles({ ...raw, primaryMuscles: ["biceps", "spleen"] })).toEqual(["spleen"]);
     expect(unmappedMuscles(raw)).toEqual([]);
+  });
+
+  it("prefixes sourceId and records provenance when a source is given", () => {
+    const ex = toExercise(raw, "uuid-2", "rl");
+    expect(ex.sourceId).toBe("rl:Alternate_Incline_Dumbbell_Curl");
+    expect(ex.source).toBe("rl");
+  });
+});
+
+describe("merge dedupe key", () => {
+  const make = (name: string, equipment: "dumbbell" | "cable") => ({
+    name,
+    equipment,
+    muscleGroups: ["chest" as const],
+  });
+
+  it("collapses true duplicates but preserves variations", () => {
+    // Same name + equipment + muscle → same key (case-insensitive).
+    expect(dedupeKey(make("Dumbbell Fly", "dumbbell"))).toBe(
+      dedupeKey(make("dumbbell fly", "dumbbell")),
+    );
+    // Different equipment → distinct, so the variation survives the merge.
+    expect(dedupeKey(make("Dumbbell Fly", "dumbbell"))).not.toBe(
+      dedupeKey(make("Cable Fly", "cable")),
+    );
   });
 });
