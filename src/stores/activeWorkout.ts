@@ -35,6 +35,7 @@ import {
 } from "@/lib/repo";
 import { resolveExerciseProgramming } from "@/lib/progression";
 import { programmingDefaultsFromSettings, useSettings } from "@/stores/settings";
+import { useDraftSets } from "@/stores/draftSets";
 
 export interface ActiveExercise {
   workoutExerciseId: string;
@@ -222,6 +223,7 @@ export const useActiveWorkout = create<ActiveWorkoutState>((set, get) => {
 
     removeExercise: async (workoutExerciseId) => {
       await removeWorkoutExercise(workoutExerciseId);
+      useDraftSets.getState().clearDraft(workoutExerciseId);
       set((state) => ({
         exercises: state.exercises.filter(
           (ex) => ex.workoutExerciseId !== workoutExerciseId,
@@ -278,12 +280,14 @@ export const useActiveWorkout = create<ActiveWorkoutState>((set, get) => {
     finish: async () => {
       const { workoutId } = get();
       if (workoutId) await endWorkout(workoutId);
+      useDraftSets.getState().clearAll();
       set({ status: "idle", workoutId: null, startedAt: null, exercises: [] });
     },
 
     discard: async () => {
       const { workoutId } = get();
       if (workoutId) await deleteWorkout(workoutId);
+      useDraftSets.getState().clearAll();
       set({ status: "idle", workoutId: null, startedAt: null, exercises: [] });
     },
   };

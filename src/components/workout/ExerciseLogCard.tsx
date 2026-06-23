@@ -9,6 +9,7 @@ import type { SetTag, SetType } from "@/lib/types";
 import type { WeightUnit } from "@/lib/units";
 import { displayWeight, toGrams } from "@/lib/units";
 import { useSettings } from "@/stores/settings";
+import { useDraftSets } from "@/stores/draftSets";
 import { cn, generateWarmupSets, roundToLoadable } from "@/lib/utils";
 import { Card } from "@/components/ui/Card";
 import { SetRow } from "./SetRow";
@@ -72,8 +73,14 @@ export function ExerciseLogCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [weight, setWeight] = React.useState(seed.weight);
-  const [reps, setReps] = React.useState(seed.reps);
+  // In-flight weight/reps live in the persisted draft store (update7 §1) so a
+  // refresh / crash mid-session restores them; `seed` is the first-render
+  // fallback before the user touches a stepper. type/rpe/tag stay ephemeral.
+  const weId = exercise.workoutExerciseId;
+  const draft = useDraftSets((s) => s.drafts[weId]);
+  const setDraft = useDraftSets((s) => s.setDraft);
+  const weight = draft?.weight ?? seed.weight;
+  const reps = draft?.reps ?? seed.reps;
   const [type, setType] = React.useState<SetType>("working");
   const [rpe, setRpe] = React.useState<number | undefined>(undefined);
   const [tag, setTag] = React.useState<SetTag | undefined>(undefined);
@@ -227,13 +234,18 @@ export function ExerciseLogCard({
             <NumberStepper
               label="Weight"
               value={weight}
-              onChange={setWeight}
+              onChange={(w) => setDraft(weId, { weight: w, reps })}
               step={weightStep}
               suffix={unit}
             />
           </div>
           <div className="min-w-0 flex-1">
-            <NumberStepper label="Reps" value={reps} onChange={setReps} step={1} />
+            <NumberStepper
+              label="Reps"
+              value={reps}
+              onChange={(r) => setDraft(weId, { weight, reps: r })}
+              step={1}
+            />
           </div>
         </div>
 
