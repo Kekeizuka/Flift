@@ -5,3 +5,4 @@ export * from "./stats";
 export * from "./routines";
 export * from "./body";
 export * from "./standards";
+export * from "./bodymap";
