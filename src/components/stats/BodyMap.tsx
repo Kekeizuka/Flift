@@ -24,7 +24,7 @@ import type { Exercise, Equipment, MuscleGroup } from "@/lib/types";
 type Mode = "browse" | "volume" | "tier";
 
 const GREY = "#3f3f46";
-const MUSCLE = "rgba(225, 29, 72, 0.14)"; // faint crimson so muscles stay visible (browse / loading)
+const MUSCLE = "rgba(225, 29, 72, 0.32)"; // muted crimson so muscles read clearly (browse / loading)
 const LINE = [39, 39, 46]; // ≈ --color-line
 const HOT = [225, 29, 72]; // ≈ crimson
 

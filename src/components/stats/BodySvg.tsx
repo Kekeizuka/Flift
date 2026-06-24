@@ -5,14 +5,13 @@ import { regionsForView, type BodyView, type RegionId } from "@/lib/body/regions
 /* ----------------------------------------------------------------------------
    Hand-authored front/back body map (update7 §2). Stylized-anatomical in the
    spirit of the reference art: a clean silhouette with each muscle group as a
-   filled, rounded shape. Geometry on a 100×220 grid (x right, y down); a region
-   may draw several sub-shapes in one `d` (e.g. the ab blocks) and still be a
-   single tappable, fillable region. `REGION_PATHS` is keyed by RegionId so every
-   region is type-guaranteed to have geometry. Fills are driven by the parent
-   (browse/volume/tier); the silhouette is presentational + pure.
+   filled mass that fills the body. Geometry on a 100×220 grid (x right, y down);
+   a region may draw several sub-shapes in one `d` (e.g. the ab blocks) and still
+   be a single tappable, fillable region. `REGION_PATHS` is keyed by RegionId so
+   every region is type-guaranteed to have geometry. Fills are driven by the
+   parent (browse/volume/tier); the silhouette is presentational + pure.
 
-   NOTE: coordinates are refined visually against the dev server — this is the
-   one piece that can't be unit-tested.
+   Calibrated against the rendered figure; refine further from screenshots.
 ---------------------------------------------------------------------------- */
 
 const VIEW_BOX = "0 0 100 220";
@@ -23,53 +22,43 @@ const SILHOUETTE =
 
 const REGION_PATHS: Record<RegionId, string> = {
   // ---- FRONT ----
-  // Pecs: two rounded shields meeting at the sternum.
+  // Pecs: two shields filling the upper chest, meeting at the sternum.
   chest:
-    "M49 39c-1.6-1.6-5-2.6-8.5-2.2-3.8.4-6.5 2-7.4 4.5-.8 2.3-.2 4.8 1.7 6.4 2.4 2 6 2.4 9 1 3-1.4 4.9-4 5.2-7.2zM51 39c1.6-1.6 5-2.6 8.5-2.2 3.8.4 6.5 2 7.4 4.5.8 2.3.2 4.8-1.7 6.4-2.4 2-6 2.4-9 1-3-1.4-4.9-4-5.2-7.2z",
-  // Front delts: caps on the shoulders.
-  "front-delts":
-    "M33 37c-3.6.5-6.4 2.3-8 5.2-1 1.8-1.3 3.6-1 5.3l5.8-1.4c.3-3 1.6-5.6 4-7.6zM67 37c3.6.5 6.4 2.3 8 5.2 1 1.8 1.3 3.6 1 5.3l-5.8-1.4c-.3-3-1.6-5.6-4-7.6z",
-  // Biceps: upper-arm bulges.
-  biceps:
-    "M27 48c-2.8.7-4.6 2.6-5.4 5.6l-1.4 12c-.3 2.3 0 4 1 5.2 1.7-.4 2.9-1.6 3.6-3.8l2.6-12c.5-2.6 1-4.8 1.6-6.6zM73 48c2.8.7 4.6 2.6 5.4 5.6l1.4 12c.3 2.3 0 4-1 5.2-1.7-.4-2.9-1.6-3.6-3.8l-2.6-12c-.5-2.6-1-4.8-1.6-6.6z",
+    "M50 43c-3.2-1.6-7.3-2.2-11.4-1.5-3.7.6-6.1 2.4-6.7 4.9-.5 2.4.4 4.8 2.4 6.5 1.9 1.6 4.6 2.5 7.6 2.6 3.8.1 6.6-1.2 8.1-3.4zM50 43c3.2-1.6 7.3-2.2 11.4-1.5 3.7.6 6.1 2.4 6.7 4.9.5 2.4-.4 4.8-2.4 6.5-1.9 1.6-4.6 2.5-7.6 2.6-3.8.1-6.6-1.2-8.1-3.4z",
+  // Front delts: rounded caps on the shoulders.
+  "front-delts": "M23 44a7 6.5 0 1 0 14 0a7 6.5 0 1 0-14 0zM63 44a7 6.5 0 1 0 14 0a7 6.5 0 1 0-14 0z",
+  // Biceps: upper-arm masses.
+  biceps: "M21.4 62a4.6 10 0 1 0 9.2 0a4.6 10 0 1 0-9.2 0zM69.4 62a4.6 10 0 1 0 9.2 0a4.6 10 0 1 0-9.2 0z",
   // Forearms.
-  forearms:
-    "M20 72c-.8 2.2-1 4.4-.6 6.8l1.6 11c.4 2.6 1.2 4.5 2.6 6 .9-1.7 1.2-3.7.9-6l-1.5-11c-.4-2.5-1.4-4.5-3-6.8zM80 72c.8 2.2 1 4.4.6 6.8l-1.6 11c-.4 2.6-1.2 4.5-2.6 6-.9-1.7-1.2-3.7-.9-6l1.5-11c.4-2.5 1.4-4.5 3-6.8z",
-  // Abs: six blocks + obliques folded in via the region; a center seam.
+  forearms: "M18 90a4 12 0 1 0 8 0a4 12 0 1 0-8 0zM74 90a4 12 0 1 0 8 0a4 12 0 1 0-8 0z",
+  // Abs: six rounded blocks + the lower-ab V.
   abs:
-    "M43 60h6v6h-6zM51 60h6v6h-6zM43 68h6v6h-6zM51 68h6v6h-6zM43 76h6v7h-6zM51 76h6v7h-6zM44 85c-.5 4 1 7 3 9h6c2-2 3.5-5 3-9z",
-  // Quads: teardrop thigh shapes.
-  quads:
-    "M40 108c-1 6-1.3 13-1 22 .2 6 .8 11 2 16 2-1 3.4-3 4-6 1.2-6 1.4-13 1-22-.3-6-.8-10-2-13-1.6 0-3 .8-4 3zM60 108c1 6 1.3 13 1 22-.2 6-.8 11-2 16-2-1-3.4-3-4-6-1.2-6-1.4-13-1-22 .3-6 .8-10 2-13 1.6 0 3 .8 4 3z",
+    "M44.7 58h3.7a1.3 1.3 0 0 1 1.3 1.3v4.6a1.3 1.3 0 0 1-1.3 1.3h-3.7a1.3 1.3 0 0 1-1.3-1.3v-4.6a1.3 1.3 0 0 1 1.3-1.3zM51.6 58h3.7a1.3 1.3 0 0 1 1.3 1.3v4.6a1.3 1.3 0 0 1-1.3 1.3h-3.7a1.3 1.3 0 0 1-1.3-1.3v-4.6a1.3 1.3 0 0 1 1.3-1.3zM44.7 65.8h3.7a1.3 1.3 0 0 1 1.3 1.3v4.6a1.3 1.3 0 0 1-1.3 1.3h-3.7a1.3 1.3 0 0 1-1.3-1.3v-4.6a1.3 1.3 0 0 1 1.3-1.3zM51.6 65.8h3.7a1.3 1.3 0 0 1 1.3 1.3v4.6a1.3 1.3 0 0 1-1.3 1.3h-3.7a1.3 1.3 0 0 1-1.3-1.3v-4.6a1.3 1.3 0 0 1 1.3-1.3zM44.7 73.6h3.7a1.3 1.3 0 0 1 1.3 1.3v4.6a1.3 1.3 0 0 1-1.3 1.3h-3.7a1.3 1.3 0 0 1-1.3-1.3v-4.6a1.3 1.3 0 0 1 1.3-1.3zM51.6 73.6h3.7a1.3 1.3 0 0 1 1.3 1.3v4.6a1.3 1.3 0 0 1-1.3 1.3h-3.7a1.3 1.3 0 0 1-1.3-1.3v-4.6a1.3 1.3 0 0 1 1.3-1.3zM45 81.5c-.6 4 .9 7.6 3 9.6h4c2.1-2 3.6-5.6 3-9.6z",
+  // Quads: full thigh masses (with the inner-thigh gap).
+  quads: "M37 130a6 21 0 1 0 12 0a6 21 0 1 0-12 0zM51 130a6 21 0 1 0 12 0a6 21 0 1 0-12 0z",
   // Front lower leg (tibialis / shin).
-  "calves-front":
-    "M42 158c-.6 5-.7 12-.3 20l.4 12c1.6-1 2.6-3 3-6l1-20c.3-4 0-7-1-9-1.4 0-2.4 1-3.1 3zM58 158c.6 5 .7 12 .3 20l-.4 12c-1.6-1-2.6-3-3-6l-1-20c-.3-4 0-7 1-9 1.4 0 2.4 1 3.1 3z",
+  "calves-front": "M40 180a4 16 0 1 0 8 0a4 16 0 1 0-8 0zM52 180a4 16 0 1 0 8 0a4 16 0 1 0-8 0z",
 
   // ---- BACK ----
-  // Traps: kite/diamond from the neck spreading to the shoulders.
+  // Traps: kite from the neck spreading to the shoulders + lower trap.
   traps:
-    "M50 33c-5 1-9 3-11.5 6.5l4 4c2-2 4.5-3.3 7.5-3.7zM50 33c5 1 9 3 11.5 6.5l-4 4c-2-2-4.5-3.3-7.5-3.7zM50 41l-4 12h8z",
-  "rear-delts":
-    "M33 37c-3.6.5-6.4 2.3-8 5.2-1 1.8-1.3 3.6-1 5.3l5.8-1.4c.3-3 1.6-5.6 4-7.6zM67 37c3.6.5 6.4 2.3 8 5.2 1 1.8 1.3 3.6 1 5.3l-5.8-1.4c-.3-3-1.6-5.6-4-7.6z",
+    "M50 33c-5 .5-9.5 2.5-12.5 5.8l3.6 4.2c2.4-2.2 5.4-3.6 8.9-4zM50 33c5 .5 9.5 2.5 12.5 5.8l-3.6 4.2c-2.4-2.2-5.4-3.6-8.9-4zM50 39l-4.6 13.5h9.2z",
+  "rear-delts": "M23 44a7 6.5 0 1 0 14 0a7 6.5 0 1 0-14 0zM63 44a7 6.5 0 1 0 14 0a7 6.5 0 1 0-14 0z",
   // Triceps (back of upper arm).
-  triceps:
-    "M27 48c-2.8.7-4.6 2.6-5.4 5.6l-1.4 12c-.3 2.3 0 4 1 5.2 1.7-.4 2.9-1.6 3.6-3.8l2.6-12c.5-2.6 1-4.8 1.6-6.6zM73 48c2.8.7 4.6 2.6 5.4 5.6l1.4 12c.3 2.3 0 4-1 5.2-1.7-.4-2.9-1.6-3.6-3.8l-2.6-12c-.5-2.6-1-4.8-1.6-6.6z",
-  // Lats: broad wings sweeping to the waist.
+  triceps: "M21.4 62a4.6 10 0 1 0 9.2 0a4.6 10 0 1 0-9.2 0zM69.4 62a4.6 10 0 1 0 9.2 0a4.6 10 0 1 0-9.2 0z",
+  // Lats: broad wings sweeping from the armpits to the waist.
   lats:
-    "M48 46c-5-.5-9.5.6-12.5 3.2-2.4 2-3.6 4.7-3.3 7.6l.8 6c4-1.4 8-3.4 11.4-6 2.4-1.8 3.7-3.8 3.6-5.4zM52 46c5-.5 9.5.6 12.5 3.2 2.4 2 3.6 4.7 3.3 7.6l-.8 6c-4-1.4-8-3.4-11.4-6-2.4-1.8-3.7-3.8-3.6-5.4z",
-  // Mid back (spinal, between the lats).
-  "mid-back": "M47 47h6v18a3 3 0 0 1-6 0z",
+    "M48 47c-5.2-.5-10.3.6-13.8 3.2-2.9 2.1-4.3 5-3.9 8l1 7c4.6-1.5 9.2-3.9 13.1-7.2 2.5-2.1 3.9-4.3 3.6-6.6zM52 47c5.2-.5 10.3.6 13.8 3.2 2.9 2.1 4.3 5 3.9 8l-1 7c-4.6-1.5-9.2-3.9-13.1-7.2-2.5-2.1-3.9-4.3-3.6-6.6z",
+  // Mid back (between the lats).
+  "mid-back": "M47 46h6v19a3 3 0 0 1-6 0z",
   // Lower back (erectors).
-  "lower-back": "M44 66c-1 5-.5 10 1.5 14h9c2-4 2.5-9 1.5-14z",
-  // Glutes: two rounded shapes.
-  glutes:
-    "M49 94c-5-.4-9 2-10.5 6-1.2 3.2-.3 6.6 2.3 8.6 2.6 2 6.2 2 8.2-.4zM51 94c5-.4 9 2 10.5 6 1.2 3.2.3 6.6-2.3 8.6-2.6 2-6.2 2-8.2-.4z",
+  "lower-back": "M44.5 66c-1.2 5-.6 10.2 1.6 14.4h7.8c2.2-4.2 2.8-9.4 1.6-14.4z",
+  // Glutes: two rounded cheeks.
+  glutes: "M39.8 104a5.7 7 0 1 0 11.4 0a5.7 7 0 1 0-11.4 0zM48.8 104a5.7 7 0 1 0 11.4 0a5.7 7 0 1 0-11.4 0z",
   // Hamstrings.
-  hamstrings:
-    "M41 112c-1 6-1.2 13-.8 21 .2 5 .7 9 1.8 13 2-1 3.3-3 3.9-6 1-6 1.1-13 .8-21-.3-5-.8-8-1.9-10-1.4 0-2.6 1-3.8 3zM59 112c1 6 1.2 13 .8 21-.2 5-.7 9-1.8 13-2-1-3.3-3-3.9-6-1-6-1.1-13-.8-21 .3-5 .8-8 1.9-10 1.4 0 2.6 1 3.8 3z",
+  hamstrings: "M37.5 131a5.5 19 0 1 0 11 0a5.5 19 0 1 0-11 0zM51.5 131a5.5 19 0 1 0 11 0a5.5 19 0 1 0-11 0z",
   // Calves (back).
-  "calves-back":
-    "M41 158c-.7 5-.8 11-.4 18l.5 13c2-1 3.2-3.4 3.7-7l1.2-18c.2-3.4-.2-6-1.2-8-1.6 0-2.8 1-3.8 2zM59 158c.7 5 .8 11 .4 18l-.5 13c-2-1-3.2-3.4-3.7-7l-1.2-18c-.2-3.4.2-6 1.2-8 1.6 0 2.8 1 3.8 2z",
+  "calves-back": "M39.7 180a4.3 16 0 1 0 8.6 0a4.3 16 0 1 0-8.6 0zM51.7 180a4.3 16 0 1 0 8.6 0a4.3 16 0 1 0-8.6 0z",
 };
 
 export function BodySvg({
@@ -107,8 +96,8 @@ export function BodySvg({
             onClick={() => onSelect(r.id)}
             fill={fill || "transparent"}
             stroke="currentColor"
-            strokeWidth={isSel ? 1.5 : 0.7}
-            className={isSel ? "text-crimson" : "text-line/60"}
+            strokeWidth={isSel ? 1.4 : 0.6}
+            className={isSel ? "text-crimson" : "text-line/50"}
             style={{ cursor: "pointer", transition: "fill 200ms ease, stroke-width 150ms ease" }}
             role="button"
             aria-label={r.label}
