@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useShallow } from "zustand/react/shallow";
 import { Reorder, useDragControls } from "motion/react";
 import {
   ChevronLeftIcon,
@@ -49,12 +50,14 @@ const toInput = (it: BuilderItem): RoutineExerciseInput => ({
 export function RoutineBuilder({ routineId }: { routineId?: string }) {
   const router = useRouter();
   const showToast = useToasts((s) => s.show);
-  const defaults = useSettings((s) => ({
-    sets: s.defaultTargetSets,
-    repMin: s.defaultRepRangeMin,
-    repMax: s.defaultRepRangeMax,
-    rest: s.defaultRestSeconds,
-  }));
+  const defaults = useSettings(
+    useShallow((s) => ({
+      sets: s.defaultTargetSets,
+      repMin: s.defaultRepRangeMin,
+      repMax: s.defaultRepRangeMax,
+      rest: s.defaultRestSeconds,
+    })),
+  );
 
   const [name, setName] = React.useState("");
   const [items, setItems] = React.useState<BuilderItem[]>([]);
