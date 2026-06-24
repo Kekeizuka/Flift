@@ -41,6 +41,7 @@ import { Card, CardLabel } from "@/components/ui/Card";
 import { Sheet } from "@/components/ui/Sheet";
 import { Segmented } from "@/components/ui/Segmented";
 import { ExerciseImage } from "@/components/exercises/ExerciseImage";
+import { StrengthStandardCard } from "@/components/stats/StrengthStandardCard";
 
 const LOAD_TYPES: { id: LoadType; label: string }[] = [
   { id: "external", label: "Weighted" },
@@ -189,6 +190,9 @@ export default function ExerciseDetailPage() {
 
         {/* Goal */}
         <GoalCard exercise={ex} sets={sets} unit={unit} onEdit={() => setGoalOpen(true)} />
+
+        {/* Strength standard (update7 §3) */}
+        <StrengthStandardCard exercise={ex} />
 
         {/* Programming */}
         <button

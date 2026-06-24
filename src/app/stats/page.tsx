@@ -65,6 +65,7 @@ function sessionBelowRange(entry: ExerciseSessionEntry, range: RepRange, unit: "
 
 export default function StatsPage() {
   const unit = useSettings((s) => s.unit);
+  const showStandards = useSettings((s) => s.showStandards);
   const defaults = useSettings(useShallow(programmingDefaultsFromSettings));
   const availablePlates = useSettings((s) => s.availablePlates);
   const barWeight = useSettings((s) => s.barWeight);
@@ -184,9 +185,20 @@ export default function StatsPage() {
 
   return (
     <div className="px-4">
-      <header className="px-1 pb-3 pt-7">
-        <h1 className="font-display text-2xl font-bold tracking-tight lg:text-3xl">Stats</h1>
-        <p className="text-sm text-muted">Per-exercise progression</p>
+      <header className="flex items-end justify-between gap-3 px-1 pb-3 pt-7">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight lg:text-3xl">Stats</h1>
+          <p className="text-sm text-muted">Per-exercise progression</p>
+        </div>
+        {showStandards && (
+          <Link
+            href="/stats/standards"
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface/70 px-3 py-2 text-sm font-medium text-muted active:bg-raised active:text-text"
+          >
+            <Icon name="trophy" className="h-4 w-4" />
+            Standards
+          </Link>
+        )}
       </header>
 
       {!ready ? (

@@ -16,6 +16,8 @@ import {
 import { useSettings } from "@/stores/settings";
 import { useHydrated } from "@/lib/hooks";
 import { downloadBackup, restoreBackup } from "@/lib/backup";
+import { getLatestBodyweight, setBodyweight } from "@/lib/repo";
+import { displayWeight, toGrams } from "@/lib/units";
 import { cn, DEFAULT_PLATES, formatClock } from "@/lib/utils";
 import { ACCENTS, SCHEMES, TRAINING_STYLES } from "@/lib/training";
 import { Card, CardLabel } from "@/components/ui/Card";
@@ -77,6 +79,9 @@ export default function SettingsPage() {
               onChange={s.setUnit}
             />
           </Card>
+
+          {/* Profile & strength standards */}
+          <ProfileCard />
 
           {/* Training preferences */}
           <Card className="p-4">
@@ -533,6 +538,151 @@ function Stepper({
         >
           <PlusIcon className="h-4 w-4" />
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Optional profile + strength-standards visibility (update7 §3). Bodyweight is a
+ * `BodyMeasurement` (Dexie, backed up); sex/height + the toggle are settings.
+ */
+function ProfileCard() {
+  const unit = useSettings((s) => s.unit);
+  const sex = useSettings((s) => s.sex);
+  const heightCm = useSettings((s) => s.heightCm);
+  const showStandards = useSettings((s) => s.showStandards);
+  const setSex = useSettings((s) => s.setSex);
+  const setHeightCm = useSettings((s) => s.setHeightCm);
+  const toggleShowStandards = useSettings((s) => s.toggleShowStandards);
+
+  const [bodyweightG, setBodyweightG] = React.useState<number | undefined>(undefined);
+  React.useEffect(() => {
+    getLatestBodyweight().then(setBodyweightG);
+  }, []);
+
+  async function commitBodyweight(value: number | undefined) {
+    if (value == null || !(value > 0)) return;
+    const grams = toGrams(value, unit);
+    await setBodyweight(grams);
+    setBodyweightG(grams);
+  }
+
+  return (
+    <Card className="p-4">
+      <SectionTitle icon={<Icon name="progress" className="h-4 w-4" />} title="Profile & standards" />
+      <p className="mb-3 text-xs text-muted">
+        Optional — only used to put your main lifts in context (strength standards). Bodyweight is
+        what matters; nothing leaves this device.
+      </p>
+
+      <div className="divide-y divide-line/50">
+        <ProfileField
+          label="Bodyweight"
+          hint="drives your strength standards"
+          value={bodyweightG != null ? displayWeight(bodyweightG, unit) : undefined}
+          suffix={unit}
+          onCommit={commitBodyweight}
+        />
+        <ProfileField
+          label="Height"
+          hint="optional refinement"
+          value={heightCm}
+          suffix="cm"
+          onCommit={setHeightCm}
+        />
+      </div>
+
+      <CardLabel className="mb-2 mt-4">Sex (optional)</CardLabel>
+      <div className="flex gap-2">
+        {(
+          [
+            ["male", "Male"],
+            ["female", "Female"],
+          ] as const
+        ).map(([val, label]) => (
+          <button
+            key={val}
+            onClick={() => setSex(sex === val ? undefined : val)}
+            aria-pressed={sex === val}
+            className={cn(
+              "flex-1 rounded-2xl border px-3 py-2.5 text-sm font-medium transition-colors",
+              sex === val
+                ? "border-transparent bg-arena text-white"
+                : "border-line bg-ink/40 text-muted active:text-text",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 text-[0.7rem] text-faint">
+        Tap again to clear — standards still work from bodyweight alone.
+      </p>
+
+      <div className="mt-2">
+        <RowToggle
+          icon={<Icon name="progress" className="h-4 w-4 text-muted" />}
+          label="Show strength standards"
+          hint="on exercise pages & the Stats tab"
+          control={
+            <Toggle
+              checked={showStandards}
+              onChange={toggleShowStandards}
+              label="Show strength standards"
+            />
+          }
+        />
+      </div>
+    </Card>
+  );
+}
+
+/** Optional numeric field — blank clears to undefined; accepts decimals. */
+function ProfileField({
+  label,
+  hint,
+  value,
+  suffix,
+  onCommit,
+}: {
+  label: string;
+  hint: string;
+  value: number | undefined;
+  suffix: string;
+  onCommit: (value: number | undefined) => void;
+}) {
+  const [draft, setDraft] = React.useState<string | null>(null);
+  return (
+    <div className="flex items-center gap-3 px-1 py-3">
+      <div className="flex-1">
+        <p className="font-medium text-text">{label}</p>
+        <p className="text-xs text-faint">{hint}</p>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <input
+          inputMode="decimal"
+          aria-label={label}
+          placeholder="—"
+          value={draft ?? (value != null ? String(value) : "")}
+          onChange={(e) => setDraft(e.target.value.replace(/[^0-9.,]/g, ""))}
+          onFocus={(e) => {
+            setDraft(value != null ? String(value) : "");
+            e.currentTarget.select();
+          }}
+          onBlur={(e) => {
+            const raw = e.target.value.trim().replace(",", ".");
+            if (raw === "") onCommit(undefined);
+            else {
+              const n = parseFloat(raw);
+              if (Number.isFinite(n)) onCommit(n);
+            }
+            setDraft(null);
+          }}
+          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+          className="w-20 rounded-xl border border-line bg-ink/40 py-2 text-center font-display text-lg font-semibold tabular-nums text-text outline-none focus:border-crimson/50"
+        />
+        <span className="w-6 text-xs text-faint">{suffix}</span>
       </div>
     </div>
   );

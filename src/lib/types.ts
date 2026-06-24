@@ -69,6 +69,10 @@ export interface ExerciseGoal {
 
 export type ThemePref = "dark" | "light" | "system";
 
+/** Optional profile input for strength standards (update7 §3). Bodyweight is the
+ *  real driver and lives in `BodyMeasurement`; sex only refines the reference. */
+export type Sex = "male" | "female";
+
 export interface Exercise {
   id: ID;
   name: string;

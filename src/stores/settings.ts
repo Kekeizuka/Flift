@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { WeightUnit } from "@/lib/units";
-import type { ProgressionScheme, ThemePref, TrainingStyle } from "@/lib/types";
+import type { ProgressionScheme, Sex, ThemePref, TrainingStyle } from "@/lib/types";
 import { DEFAULT_PLATES } from "@/lib/utils";
 import { STYLE_PRESETS } from "@/lib/training";
 
@@ -37,6 +37,11 @@ export interface SettingsState {
   remindersEnabled: boolean;
   animationsEnabled: boolean;
 
+  /* profile — optional context for strength standards (update7 §3) */
+  sex?: Sex;
+  heightCm?: number;
+  showStandards: boolean;
+
   /* misc */
   weeklyGoal: number;
   timerMuted: boolean;
@@ -64,6 +69,9 @@ export interface SettingsState {
   toggleReminders: () => void;
   toggleAnimations: () => void;
   toggleTimerMuted: () => void;
+  setSex: (sex: Sex | undefined) => void;
+  setHeightCm: (cm: number | undefined) => void;
+  toggleShowStandards: () => void;
   completeOnboarding: () => void;
 }
 
@@ -86,6 +94,7 @@ const DEFAULTS = {
   firstDayOfWeek: 1 as 0 | 1,
   remindersEnabled: false,
   animationsEnabled: true,
+  showStandards: true,
   weeklyGoal: 4,
   timerMuted: false,
   onboardingComplete: false,
@@ -159,17 +168,26 @@ export const useSettings = create<SettingsState>()(
       toggleReminders: () => set((s) => ({ remindersEnabled: !s.remindersEnabled })),
       toggleAnimations: () => set((s) => ({ animationsEnabled: !s.animationsEnabled })),
       toggleTimerMuted: () => set((s) => ({ timerMuted: !s.timerMuted })),
+      setSex: (sex) => set({ sex }),
+      setHeightCm: (heightCm) =>
+        set({ heightCm: heightCm && heightCm > 0 ? heightCm : undefined }),
+      toggleShowStandards: () => set((s) => ({ showStandards: !s.showStandards })),
       completeOnboarding: () => set({ onboardingComplete: true }),
     }),
     {
       name: "replog-settings",
-      version: 3,
+      version: 4,
       migrate: (persisted, version) => {
         const old = (persisted ?? {}) as Record<string, unknown>;
         if (version < 3) {
           // v2 stored the bar as `barWeightKg`; carry it over to `barWeight`.
           if (typeof old.barWeightKg === "number") old.barWeight = old.barWeightKg;
           delete old.barWeightKg;
+        }
+        if (version < 4) {
+          // v4 adds the optional profile + standards visibility (update7 §3);
+          // default-on so the feature is discoverable. Missing keys merge in.
+          if (typeof old.showStandards !== "boolean") old.showStandards = true;
         }
         return old as unknown as SettingsState;
       },
