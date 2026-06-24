@@ -24,6 +24,7 @@ import type { Exercise, Equipment, MuscleGroup } from "@/lib/types";
 type Mode = "browse" | "volume" | "tier";
 
 const GREY = "#3f3f46";
+const MUSCLE = "rgba(225, 29, 72, 0.14)"; // faint crimson so muscles stay visible (browse / loading)
 const LINE = [39, 39, 46]; // ≈ --color-line
 const HOT = [225, 29, 72]; // ≈ crimson
 
@@ -79,9 +80,9 @@ export function BodyMap() {
   const colorFor = (id: RegionId): string => {
     const region = BODY_REGIONS.find((r) => r.id === id);
     if (!region) return "";
-    if (mode === "browse") return "";
+    if (mode === "browse") return MUSCLE;
     if (mode === "volume") {
-      if (!volume) return "";
+      if (!volume) return MUSCLE;
       const t = volumeIntensity(muscleVol(volume, region.muscles), volume.maxMuscleG);
       return t <= 0 ? GREY : mix(LINE, HOT, t);
     }

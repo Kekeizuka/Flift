@@ -3,38 +3,74 @@
 import { regionsForView, type BodyView, type RegionId } from "@/lib/body/regions";
 
 /* ----------------------------------------------------------------------------
-   Hand-authored front/back body map (update7 §2). Stroke-only, currentColor, to
-   match the icon language. Geometry on a 100×200 grid (x right, y down); each
-   region is one tappable <path>. `REGION_PATHS` is keyed by RegionId so every
+   Hand-authored front/back body map (update7 §2). Stylized-anatomical in the
+   spirit of the reference art: a clean silhouette with each muscle group as a
+   filled, rounded shape. Geometry on a 100×220 grid (x right, y down); a region
+   may draw several sub-shapes in one `d` (e.g. the ab blocks) and still be a
+   single tappable, fillable region. `REGION_PATHS` is keyed by RegionId so every
    region is type-guaranteed to have geometry. Fills are driven by the parent
-   (browse/volume/tier); the component itself is presentational + pure.
+   (browse/volume/tier); the silhouette is presentational + pure.
+
+   NOTE: coordinates are refined visually against the dev server — this is the
+   one piece that can't be unit-tested.
 ---------------------------------------------------------------------------- */
 
-const REGION_PATHS: Record<RegionId, string> = {
-  // FRONT
-  chest: "M37 54h26a5 5 0 0 1 5 5v8a19 11 0 0 1-36 0v-8a5 5 0 0 1 5-5z",
-  "front-delts":
-    "M28 52a11 9 0 0 0-9 9l7 5a12 9 0 0 1 9-8zM72 52a11 9 0 0 1 9 9l-7 5a12 9 0 0 0-9-8z",
-  biceps: "M21 67l7 2v18l-8-3zM79 67l-7 2v18l8-3z",
-  forearms: "M20 90l7 1v21l-8-3zM80 90l-7 1v21l8-3z",
-  abs: "M41 80h18v28a9 7 0 0 1-18 0z",
-  quads: "M40 112h8l-1 38h-9zM60 112h-8l1 38h9z",
-  "calves-front": "M41 154h7l-1 32h-7zM59 154h-7l1 32h7z",
-  // BACK
-  traps: "M40 48h20l-3 11H43z",
-  "rear-delts":
-    "M28 52a11 9 0 0 0-9 9l7 5a12 9 0 0 1 9-8zM72 52a11 9 0 0 1 9 9l-7 5a12 9 0 0 0-9-8z",
-  lats: "M35 60h11v24l-14-7zM65 60H54v24l14-7z",
-  "mid-back": "M46 60h8v22h-8z",
-  "lower-back": "M42 84h16v15a8 5 0 0 1-16 0z",
-  triceps: "M21 67l7 2v18l-8-3zM79 67l-7 2v18l8-3z",
-  glutes: "M40 102h9v13a9 6 0 0 1-9 0zM60 102h-9v13a9 6 0 0 0 9 0z",
-  hamstrings: "M40 118h8l-1 34h-9zM60 118h-8l1 34h9z",
-  "calves-back": "M41 156h7l-1 30h-7zM59 156h-7l1 30h7z",
-};
+const VIEW_BOX = "0 0 100 220";
 
+/** Standing figure outline, shared by front and back (mirror-symmetric). */
 const SILHOUETTE =
-  "M50 12a8 8 0 0 1 6 13l6 4q9 4 9 15l-3 22-2 28 4 18q1 30-2 50h-8l-3-40h-6l-3 40h-8q-3-20-2-50l4-18-2-28-3-22q0-11 9-15l6-4a8 8 0 0 1 6-13z";
+  "M50 6c-5 0-8 3.4-8 8 0 2.6 1.1 4.7 2.8 6.1-.2 1.7-1.4 2.7-3.4 3.4-4 1.3-7.4 2.7-9.7 5.3-1.8 2-2.7 4.7-3.3 8.2l-2 12c-.5 3-1.4 5.3-2.8 7.4l-3.6 5.3c-1.4 2-2 3.8-2 6.2 0 2 .4 4.2 1.2 7l3 10c.7 2.4.8 4 .4 6l-2 10c-.3 1.7-.2 3 .4 4.2.6 1.2 1.7 2 3.2 2 1.6 0 2.7-.9 3.3-2.4.5-1.3.7-2.8.9-4.9l1.3-12c.2-2 .6-3.4 1.5-4.6.8 1 1.2 2.4 1.4 4.6l.6 9c-.7 4-1 8-1 12.5l.4 16c.1 5 .6 9 1.6 13l2.4 10c.6 2.4.8 4.3.6 6.6l-.9 11c-.2 2.4-.1 4 .5 5.2.6 1.3 1.8 2 3.4 2s2.8-.8 3.4-2.3c.5-1.2.7-2.7.8-4.8l1-15c.2-3 .6-5 1.5-6.6.9 1.6 1.3 3.6 1.5 6.6l1 15c.1 2.1.3 3.6.8 4.8.6 1.5 1.8 2.3 3.4 2.3s2.8-.7 3.4-2c.6-1.2.7-2.8.5-5.2l-.9-11c-.2-2.3 0-4.2.6-6.6l2.4-10c1-4 1.5-8 1.6-13l.4-16c0-4.5-.3-8.5-1-12.5l.6-9c.2-2.2.6-3.6 1.4-4.6.9 1.2 1.3 2.6 1.5 4.6l1.3 12c.2 2.1.4 3.6.9 4.9.6 1.5 1.7 2.4 3.3 2.4 1.5 0 2.6-.8 3.2-2 .6-1.2.7-2.5.4-4.2l-2-10c-.4-2-.3-3.6.4-6l3-10c.8-2.8 1.2-5 1.2-7 0-2.4-.6-4.2-2-6.2l-3.6-5.3c-1.4-2.1-2.3-4.4-2.8-7.4l-2-12c-.6-3.5-1.5-6.2-3.3-8.2-2.3-2.6-5.7-4-9.7-5.3-2-.7-3.2-1.7-3.4-3.4 1.7-1.4 2.8-3.5 2.8-6.1 0-4.6-3-8-8-8z";
+
+const REGION_PATHS: Record<RegionId, string> = {
+  // ---- FRONT ----
+  // Pecs: two rounded shields meeting at the sternum.
+  chest:
+    "M49 39c-1.6-1.6-5-2.6-8.5-2.2-3.8.4-6.5 2-7.4 4.5-.8 2.3-.2 4.8 1.7 6.4 2.4 2 6 2.4 9 1 3-1.4 4.9-4 5.2-7.2zM51 39c1.6-1.6 5-2.6 8.5-2.2 3.8.4 6.5 2 7.4 4.5.8 2.3.2 4.8-1.7 6.4-2.4 2-6 2.4-9 1-3-1.4-4.9-4-5.2-7.2z",
+  // Front delts: caps on the shoulders.
+  "front-delts":
+    "M33 37c-3.6.5-6.4 2.3-8 5.2-1 1.8-1.3 3.6-1 5.3l5.8-1.4c.3-3 1.6-5.6 4-7.6zM67 37c3.6.5 6.4 2.3 8 5.2 1 1.8 1.3 3.6 1 5.3l-5.8-1.4c-.3-3-1.6-5.6-4-7.6z",
+  // Biceps: upper-arm bulges.
+  biceps:
+    "M27 48c-2.8.7-4.6 2.6-5.4 5.6l-1.4 12c-.3 2.3 0 4 1 5.2 1.7-.4 2.9-1.6 3.6-3.8l2.6-12c.5-2.6 1-4.8 1.6-6.6zM73 48c2.8.7 4.6 2.6 5.4 5.6l1.4 12c.3 2.3 0 4-1 5.2-1.7-.4-2.9-1.6-3.6-3.8l-2.6-12c-.5-2.6-1-4.8-1.6-6.6z",
+  // Forearms.
+  forearms:
+    "M20 72c-.8 2.2-1 4.4-.6 6.8l1.6 11c.4 2.6 1.2 4.5 2.6 6 .9-1.7 1.2-3.7.9-6l-1.5-11c-.4-2.5-1.4-4.5-3-6.8zM80 72c.8 2.2 1 4.4.6 6.8l-1.6 11c-.4 2.6-1.2 4.5-2.6 6-.9-1.7-1.2-3.7-.9-6l1.5-11c.4-2.5 1.4-4.5 3-6.8z",
+  // Abs: six blocks + obliques folded in via the region; a center seam.
+  abs:
+    "M43 60h6v6h-6zM51 60h6v6h-6zM43 68h6v6h-6zM51 68h6v6h-6zM43 76h6v7h-6zM51 76h6v7h-6zM44 85c-.5 4 1 7 3 9h6c2-2 3.5-5 3-9z",
+  // Quads: teardrop thigh shapes.
+  quads:
+    "M40 108c-1 6-1.3 13-1 22 .2 6 .8 11 2 16 2-1 3.4-3 4-6 1.2-6 1.4-13 1-22-.3-6-.8-10-2-13-1.6 0-3 .8-4 3zM60 108c1 6 1.3 13 1 22-.2 6-.8 11-2 16-2-1-3.4-3-4-6-1.2-6-1.4-13-1-22 .3-6 .8-10 2-13 1.6 0 3 .8 4 3z",
+  // Front lower leg (tibialis / shin).
+  "calves-front":
+    "M42 158c-.6 5-.7 12-.3 20l.4 12c1.6-1 2.6-3 3-6l1-20c.3-4 0-7-1-9-1.4 0-2.4 1-3.1 3zM58 158c.6 5 .7 12 .3 20l-.4 12c-1.6-1-2.6-3-3-6l-1-20c-.3-4 0-7 1-9 1.4 0 2.4 1 3.1 3z",
+
+  // ---- BACK ----
+  // Traps: kite/diamond from the neck spreading to the shoulders.
+  traps:
+    "M50 33c-5 1-9 3-11.5 6.5l4 4c2-2 4.5-3.3 7.5-3.7zM50 33c5 1 9 3 11.5 6.5l-4 4c-2-2-4.5-3.3-7.5-3.7zM50 41l-4 12h8z",
+  "rear-delts":
+    "M33 37c-3.6.5-6.4 2.3-8 5.2-1 1.8-1.3 3.6-1 5.3l5.8-1.4c.3-3 1.6-5.6 4-7.6zM67 37c3.6.5 6.4 2.3 8 5.2 1 1.8 1.3 3.6 1 5.3l-5.8-1.4c-.3-3-1.6-5.6-4-7.6z",
+  // Triceps (back of upper arm).
+  triceps:
+    "M27 48c-2.8.7-4.6 2.6-5.4 5.6l-1.4 12c-.3 2.3 0 4 1 5.2 1.7-.4 2.9-1.6 3.6-3.8l2.6-12c.5-2.6 1-4.8 1.6-6.6zM73 48c2.8.7 4.6 2.6 5.4 5.6l1.4 12c.3 2.3 0 4-1 5.2-1.7-.4-2.9-1.6-3.6-3.8l-2.6-12c-.5-2.6-1-4.8-1.6-6.6z",
+  // Lats: broad wings sweeping to the waist.
+  lats:
+    "M48 46c-5-.5-9.5.6-12.5 3.2-2.4 2-3.6 4.7-3.3 7.6l.8 6c4-1.4 8-3.4 11.4-6 2.4-1.8 3.7-3.8 3.6-5.4zM52 46c5-.5 9.5.6 12.5 3.2 2.4 2 3.6 4.7 3.3 7.6l-.8 6c-4-1.4-8-3.4-11.4-6-2.4-1.8-3.7-3.8-3.6-5.4z",
+  // Mid back (spinal, between the lats).
+  "mid-back": "M47 47h6v18a3 3 0 0 1-6 0z",
+  // Lower back (erectors).
+  "lower-back": "M44 66c-1 5-.5 10 1.5 14h9c2-4 2.5-9 1.5-14z",
+  // Glutes: two rounded shapes.
+  glutes:
+    "M49 94c-5-.4-9 2-10.5 6-1.2 3.2-.3 6.6 2.3 8.6 2.6 2 6.2 2 8.2-.4zM51 94c5-.4 9 2 10.5 6 1.2 3.2.3 6.6-2.3 8.6-2.6 2-6.2 2-8.2-.4z",
+  // Hamstrings.
+  hamstrings:
+    "M41 112c-1 6-1.2 13-.8 21 .2 5 .7 9 1.8 13 2-1 3.3-3 3.9-6 1-6 1.1-13 .8-21-.3-5-.8-8-1.9-10-1.4 0-2.6 1-3.8 3zM59 112c1 6 1.2 13 .8 21-.2 5-.7 9-1.8 13-2-1-3.3-3-3.9-6-1-6-1.1-13-.8-21 .3-5 .8-8 1.9-10 1.4 0 2.6 1 3.8 3z",
+  // Calves (back).
+  "calves-back":
+    "M41 158c-.7 5-.8 11-.4 18l.5 13c2-1 3.2-3.4 3.7-7l1.2-18c.2-3.4-.2-6-1.2-8-1.6 0-2.8 1-3.8 2zM59 158c.7 5 .8 11 .4 18l-.5 13c-2-1-3.2-3.4-3.7-7l-1.2-18c-.2-3.4.2-6 1.2-8 1.6 0 2.8 1 3.8 2z",
+};
 
 export function BodySvg({
   view,
@@ -49,16 +85,16 @@ export function BodySvg({
 }) {
   return (
     <svg
-      viewBox="0 0 100 200"
-      className="mx-auto h-auto max-h-[58vh] w-auto text-line"
+      viewBox={VIEW_BOX}
+      className="mx-auto h-auto max-h-[60vh] w-auto text-line"
       role="img"
       aria-label={`${view} body map`}
     >
       <path
         d={SILHOUETTE}
-        fill="none"
+        fill="var(--color-surface, #181318)"
         stroke="currentColor"
-        strokeWidth={1.5}
+        strokeWidth={1.4}
         strokeLinejoin="round"
       />
       {regionsForView(view).map((r) => {
@@ -71,8 +107,8 @@ export function BodySvg({
             onClick={() => onSelect(r.id)}
             fill={fill || "transparent"}
             stroke="currentColor"
-            strokeWidth={isSel ? 1.6 : 0.8}
-            className={isSel ? "text-crimson" : "text-line/70"}
+            strokeWidth={isSel ? 1.5 : 0.7}
+            className={isSel ? "text-crimson" : "text-line/60"}
             style={{ cursor: "pointer", transition: "fill 200ms ease, stroke-width 150ms ease" }}
             role="button"
             aria-label={r.label}
